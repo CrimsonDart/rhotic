@@ -1,8 +1,8 @@
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap};
 use softbuffer::{Context, Surface};
 use winit::{
     window::WindowBuilder,
-    event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState}};
+    event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}};
 
 use crate::state::application::State;
 
@@ -31,17 +31,18 @@ pub fn start_event_loop() -> Result<(), OsError> {
         background_color: Rgba::new(0,0,0,255),
         text_color: Rgba::new(255, 255, 255, 255),
         mouse_state: MouseState::default(),
+        keyboard_state: KeyboardState::new(),
+        is_focused: false
     };
-
-
 
     event_loop.run(move |event, _window_target, control_flow| {
 
-        state.mouse_state.advance_state();
         control_flow.set_wait();
 
         use winit::event::Event::*;
         match event {
+
+            MainEventsCleared => state.advance(),
 
             WindowEvent {
                 window_id,
@@ -100,12 +101,22 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
             DeviceEvent { device_id: _, event } => if let winit::event::DeviceEvent::Key(key) = event {
 
-                println!("{:?}", key);
+                let press = if key.state == ElementState::Pressed {
+                    ButtonState::Pressed
+                } else {
+                    ButtonState::Released
+                };
 
+                let keys = &mut state.keyboard_state.keys;
 
-
-
-
+                match key.virtual_keycode {
+                    Some(k) => {
+                        keys.insert(KeyType::Keycode(k), press);
+                    },
+                    None => {
+                        keys.insert(KeyType::Scancode(key.scancode), press);
+                    }
+                }
             },
 
             RedrawRequested(window_id) if window_id == window.id() => {
@@ -127,12 +138,11 @@ pub fn start_event_loop() -> Result<(), OsError> {
     });
 }
 
-
 // Mouse Input handling
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct MouseState {
     pub position: Point<u32>, // in pixel position (top left is 0,0)
-    pub is_in_window: bool,
     pub scroll_delta: Option<MouseScrollDelta>,
 
     pub left_button: ButtonState,
@@ -158,12 +168,84 @@ impl Default for MouseState {
         use ButtonState::*;
 
         MouseState { position: Point::new(0, 0),
-                     is_in_window: false,
                      scroll_delta: None,
                      left_button: Depressed,
                      right_button: Depressed,
                      middle_button: Depressed }
     }
+}
+
+impl Display for MouseState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
+        let (scroll_type, amount) = match self.scroll_delta {
+            Some(MouseScrollDelta::LineDelta(a, b)) => {
+                ("Line", (a as f64, b as f64))
+            },
+            Some(MouseScrollDelta::PixelDelta(p)) => {
+                ("Pixel", (p.x, p.y))
+            },
+            None => {
+                ("None", (0.0, 0.0))
+            }
+        };
+
+        write!(f, "position: {}, {} | Scroll {}: {}, {} | M1: {} | M2: {} | M3: {}",
+               self.position.x, self.position.y,
+               scroll_type, amount.0, amount.1,
+               self.left_button,
+               self.right_button,
+               self.middle_button
+
+        )
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct KeyboardState {
+    keys: HashMap<KeyType, ButtonState>
+}
+
+impl KeyboardState {
+    pub fn new() -> Self {
+        Self {
+            keys: HashMap::new()
+        }
+    }
+
+    pub fn advance_state(&mut self) {
+
+        for (_key, value) in self.keys.iter_mut() {
+            *value = value.advance_state();
+        }
+    }
+}
+
+impl Display for KeyboardState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
+        for value in self.keys.iter() {
+            if value.1 != &ButtonState::Depressed {
+
+                match value.0 {
+                    KeyType::Scancode(n) => {
+                        write!(f, "SC({:?}): {} | ", n, value.1)?;
+                    },
+                    KeyType::Keycode(key) => {
+                        write!(f, "{:?}: {} | ", key, value.1)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub enum KeyType {
+    Scancode(u32),
+    Keycode(VirtualKeyCode)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -182,5 +264,18 @@ impl ButtonState {
             Released => Depressed,
             _ => self
         }
+    }
+}
+
+impl Display for ButtonState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ButtonState::*;
+
+        write!(f, "{}", match self {
+            Pressed => "P",
+            Held => "H",
+            Released => "R",
+            Depressed => "D"
+        })
     }
 }

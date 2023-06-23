@@ -11,23 +11,25 @@ use super::types::Rgba;
 
 
 // places the render function outside of the event loop to reduce clutter.
-pub fn render(surface: &mut Surface, width: u32, height: u32, state: &State) {
+//
+//
+// IF THE WINDOW BORDERS RESIZE FASTER THAN THE WINDOW ITSELF THEN IT'S BECAUSE
+// THE RENDERING TAKES TOO LONG
+//
+//
+//
+pub fn render(surface: &mut Surface, width: u32, height: u32, _state: &State) {
+
 
     let mut buffer = surface.buffer_mut().unwrap();
 
+
     for index in 0..(width * height) {
 
-        let y = index / width;
-        let x = index % width;
 
 
-        let color = Rgba::new(x % 255,
-                 y % 255,
-        (x * y) % 255,
-        0);
 
-
-        buffer[index as usize] = color.into();
+        buffer[index as usize] = Rgba::new(255, 255, 255, 255).into();
     }
 
     buffer.present().unwrap();

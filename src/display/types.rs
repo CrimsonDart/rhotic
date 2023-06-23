@@ -74,8 +74,8 @@ impl Default for Rgba {
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Point<T> {
-    x: T,
-    y: T
+    pub x: T,
+    pub y: T
 }
 
 impl<T> Point<T> {
