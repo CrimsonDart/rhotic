@@ -37,6 +37,7 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
     event_loop.run(move |event, _window_target, control_flow| {
 
+        state.mouse_state.advance_state();
         control_flow.set_wait();
 
         use winit::event::Event::*;
@@ -62,14 +63,6 @@ pub fn start_event_loop() -> Result<(), OsError> {
                         println!("Focused: {}", is);
                     },
 
-                    KeyboardInput { device_id: _, input, is_synthetic: _ } => {
-                        println!("{:?}", input.virtual_keycode);
-                    },
-
-                    ModifiersChanged(modifiers) => {
-                        println!("Modifiers: {:?}", modifiers);
-                    },
-
                     CursorMoved { device_id: _, position, modifiers: _ } => {
                         state.mouse_state.position = Point::new(position.x as u32, position.y as u32);
                     },
@@ -82,20 +75,37 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
                         use winit::event::MouseButton::*;
 
+                        let press = if pressed == ElementState::Pressed {
+                            ButtonState::Pressed
+                        } else {
+                            ButtonState::Released
+                        };
+
                         match button {
                             Left => {
-                                state.mouse_state.left_button = if pressed == ElementState::Pressed {
-                                    ButtonState::Pressed
-                                } else {
-                                    ButtonState::Released
-                                }
+                                state.mouse_state.left_button = press;
+                            },
+                            Right => {
+                                state.mouse_state.right_button = press;
+                            },
+                            Middle => {
+                                state.mouse_state.middle_button = press;
                             },
                             _ => {}
                         }
                     },
-
                     _ => {}
                 }
+            },
+
+            DeviceEvent { device_id: _, event } => if let winit::event::DeviceEvent::Key(key) = event {
+
+                println!("{:?}", key);
+
+
+
+
+
             },
 
             RedrawRequested(window_id) if window_id == window.id() => {
@@ -118,9 +128,6 @@ pub fn start_event_loop() -> Result<(), OsError> {
 }
 
 
-
-
-
 // Mouse Input handling
 
 pub struct MouseState {
@@ -131,7 +138,6 @@ pub struct MouseState {
     pub left_button: ButtonState,
     pub right_button: ButtonState,
     pub middle_button: ButtonState,
-    pub other: Vec<ButtonState>
 }
 
 impl MouseState {
@@ -143,9 +149,6 @@ impl MouseState {
         self.right_button = self.right_button.advance_state();
         self.middle_button = self.middle_button.advance_state();
 
-        for index in 0..self.other.len() {
-            self.other[index] = self.other[index].advance_state();
-        }
     }
 }
 
@@ -159,8 +162,7 @@ impl Default for MouseState {
                      scroll_delta: None,
                      left_button: Depressed,
                      right_button: Depressed,
-                     middle_button: Depressed,
-                     other: Vec::new() }
+                     middle_button: Depressed }
     }
 }
 
