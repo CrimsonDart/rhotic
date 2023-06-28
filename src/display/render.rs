@@ -24,6 +24,19 @@ pub fn render(mut buffer: Buffer, window_size: Point<u32>, state: &State, widget
     draw_to_buffer(&widgets.background, &mut buffer, window_size, state);
 
 
+    for widget in widgets.layer1.iter() {
+        draw_to_buffer(&widgets.background, &mut buffer, window_size, state);
+    }
+    for widget in widgets.layer2.iter() {
+        draw_to_buffer(&widgets.background, &mut buffer, window_size, state);
+    }
+    for widget in widgets.layer3.iter() {
+        draw_to_buffer(&widgets.background, &mut buffer, window_size, state);
+    }
+    for widget in widgets.overlay.iter() {
+        draw_to_buffer(&widgets.background, &mut buffer, window_size, state);
+    }
+
 
 
 
