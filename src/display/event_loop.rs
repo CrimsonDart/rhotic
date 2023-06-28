@@ -1,12 +1,12 @@
-use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap};
+use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap, ops::Deref, time::{Instant, Duration}};
 use softbuffer::{Context, Surface};
 use winit::{
     window::WindowBuilder,
-    event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}};
+    event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}, dpi::{LogicalSize, PhysicalSize}};
 
-use crate::state::application::State;
+use crate::state::{application::State, widgets::{Widget, self, WidgetCollection}};
 
-use super::{render, font::load_ttf, Rgba, Point};
+use super::{render, font::load_ttf, Rgba, Point, Rect};
 
 pub fn start_event_loop() -> Result<(), OsError> {
     let event_loop = EventLoop::new();
@@ -14,6 +14,7 @@ pub fn start_event_loop() -> Result<(), OsError> {
     let window = WindowBuilder::new()
         .with_title("Rhotic Text Editor")
         .with_window_icon(None)
+        .with_min_inner_size(PhysicalSize::new(200, 200))
         .build(&event_loop)?
         ;
 
@@ -28,21 +29,29 @@ pub fn start_event_loop() -> Result<(), OsError> {
     let mut state = State {
         font: load_ttf("assets/fonts/Inconsolata-Regular.ttf").unwrap(),
         display_text: String::from("EEEEEE"),
-        background_color: Rgba::new(0,0,0,255),
-        text_color: Rgba::new(255, 255, 255, 255),
         mouse_state: MouseState::default(),
         keyboard_state: KeyboardState::new(),
-        is_focused: false
+        is_focused: false,
+        time: 0xFF000000,
+    };
+
+    let mut widgets = WidgetCollection::new();
+    widgets.background.rect = {
+        let w = window.inner_size();
+        Rect::new(0, 0, w.width, w.height)
     };
 
     event_loop.run(move |event, _window_target, control_flow| {
 
-        control_flow.set_wait();
+        control_flow.set_poll();
 
         use winit::event::Event::*;
         match event {
 
-            MainEventsCleared => state.advance(),
+            MainEventsCleared => {
+                state.advance();
+                window.request_redraw();
+            },
 
             WindowEvent {
                 window_id,
@@ -53,6 +62,10 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
                 match event {
                     Resized(_) => {
+                        widgets.background.rect = {
+                            let w = window.inner_size();
+                            Rect::new(0,0, w.width, w.height)
+                        };
                         window.request_redraw();
                     },
 
@@ -61,6 +74,10 @@ pub fn start_event_loop() -> Result<(), OsError> {
                     },
 
                     Focused(is) => {
+
+                        state.is_focused = is;
+
+                        #[cfg(debug_assertions)]
                         println!("Focused: {}", is);
                     },
 
@@ -121,17 +138,18 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
             RedrawRequested(window_id) if window_id == window.id() => {
 
-                let (width, height) = {
+                let size = {
                     let size = window.inner_size();
-                    (size.width, size.height)
+                    Point::new(size.width, size.height)
                 };
 
                 surface.resize(
-                    NonZeroU32::new(width).unwrap(),
-                    NonZeroU32::new(height).unwrap()
+                    NonZeroU32::new(size.x).unwrap(),
+                    NonZeroU32::new(size.y).unwrap()
                 ).unwrap();
 
-                render(&mut surface, width, height, &state);
+                let buffer = surface.buffer_mut().unwrap();
+                render(buffer, size, &state, &widgets);
             },
             _ => {}
         }
@@ -178,32 +196,34 @@ impl Default for MouseState {
 impl Display for MouseState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 
-        let (scroll_type, amount) = match self.scroll_delta {
+        write!(f, "position: {}, {}", self.position.x, self.position.y)?;
+
+        match self.scroll_delta {
             Some(MouseScrollDelta::LineDelta(a, b)) => {
-                ("Line", (a as f64, b as f64))
+                write!(f, " | Scroll Line: {}, {}", a, b)?;
             },
             Some(MouseScrollDelta::PixelDelta(p)) => {
-                ("Pixel", (p.x, p.y))
-            },
-            None => {
-                ("None", (0.0, 0.0))
+                write!(f, " | Scroll Pixel: {}, {}", p.x, p.y)?;
             }
-        };
+            _ => {}
+        }
 
-        write!(f, "position: {}, {} | Scroll {}: {}, {} | M1: {} | M2: {} | M3: {}",
-               self.position.x, self.position.y,
-               scroll_type, amount.0, amount.1,
-               self.left_button,
-               self.right_button,
-               self.middle_button
-
-        )
+        if self.left_button != ButtonState::Depressed {
+            write!(f, " | M1: {}", self.left_button)?;
+        }
+        if self.right_button != ButtonState::Depressed {
+            write!(f, " | M2: {}", self.right_button)?;
+        }
+        if self.middle_button != ButtonState::Depressed {
+            write!(f, " | M3: {}", self.middle_button)?;
+        }
+        Ok(())
     }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct KeyboardState {
-    keys: HashMap<KeyType, ButtonState>
+    pub keys: HashMap<KeyType, ButtonState>
 }
 
 impl KeyboardState {
@@ -221,6 +241,7 @@ impl KeyboardState {
     }
 }
 
+#[cfg(debug_assertions)]
 impl Display for KeyboardState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 
@@ -237,7 +258,6 @@ impl Display for KeyboardState {
                 }
             }
         }
-
         Ok(())
     }
 }

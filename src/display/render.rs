@@ -1,10 +1,10 @@
 
-use softbuffer::{self, Surface};
+use softbuffer::{self, Surface, Buffer};
 
 
-use crate::state::application::State;
+use crate::state::{application::State, widgets::{WidgetCollection, Widget, draw_to_buffer}};
 
-use super::types::Rgba;
+use super::{types::Rgba, Rect, Point};
 
 
 
@@ -16,21 +16,20 @@ use super::types::Rgba;
 // IF THE WINDOW BORDERS RESIZE FASTER THAN THE WINDOW ITSELF THEN IT'S BECAUSE
 // THE RENDERING TAKES TOO LONG
 //
+// or maybe not actually, rendering is pretty cheap....
 //
 //
-pub fn render(surface: &mut Surface, width: u32, height: u32, _state: &State) {
+pub fn render(mut buffer: Buffer, window_size: Point<u32>, state: &State, widgets: &WidgetCollection) {
 
-
-    let mut buffer = surface.buffer_mut().unwrap();
-
-
-    for index in 0..(width * height) {
+    draw_to_buffer(&widgets.background, &mut buffer, window_size, state);
 
 
 
 
-        buffer[index as usize] = Rgba::new(255, 255, 255, 255).into();
-    }
+
+
+
+
 
     buffer.present().unwrap();
 }

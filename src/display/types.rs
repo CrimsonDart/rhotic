@@ -1,5 +1,6 @@
+use std::array::IntoIter;
 use std::fmt::{Formatter, Display};
-use std::ops::Add;
+use std::ops::{Add, Range, Mul};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Rgba {
@@ -82,6 +83,13 @@ impl<T> Point<T> {
     pub fn new(x: T, y: T) -> Self {
         Self {x, y}
     }
+
+    pub fn get_size(&self) -> T
+        where T: Mul<Output = T> + Copy {
+
+        self.x * self.y
+
+    }
 }
 
 impl<T: Add<Output = T>> Add for Point<T> {
@@ -94,10 +102,66 @@ impl<T: Add<Output = T>> Add for Point<T> {
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct Rect<T> {
-    pub offset: Point<T>,
-    pub size: Point<T>
+pub struct Rect {
+    pub offset: Point<u32>,
+    pub size: Point<u32>
 }
+
+impl Rect {
+    pub fn new(ox: u32, oy: u32, sx: u32, sy: u32) -> Self {
+        Self {
+            offset: Point::new(ox, oy),
+            size: Point::new(sx, sy)
+        }
+    }
+}
+
+
+impl IntoIterator for Rect {
+
+    type IntoIter = RectIter;
+    type Item = Point<u32>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        RectIter {rect: self, index: Point::new(0,0)}
+    }
+}
+
+pub struct RectIter  {
+    rect: Rect,
+    index: Point<u32>
+}
+
+impl Iterator for RectIter {
+
+    type Item = Point<u32>;
+
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        let mut index = &mut self.index;
+        let size = &self.rect.size;
+        let offset = &self.rect.offset;
+
+
+        // this means that the next iteration will be outside the range of the Rect.
+
+        if index.y > size.y {
+            return None;
+        }
+
+        let out = Some(*index + *offset);
+
+        index.x = index.x + 1;
+        if index.x > size.x {
+            index.x = 0;
+            index.y = index.y + 1;
+        }
+
+        out
+    }
+}
+
 
 #[cfg(test)]
 mod test {

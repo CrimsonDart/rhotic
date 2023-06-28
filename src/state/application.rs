@@ -13,20 +13,23 @@ use crate::display::{Rgba, event_loop::{MouseState, KeyboardState}};
 pub struct State {
     pub font: Font<'static>,
     pub display_text: String,
-    pub background_color: Rgba,
-    pub text_color: Rgba,
     pub mouse_state: MouseState,
     pub keyboard_state: KeyboardState,
-    pub is_focused: bool
+    pub is_focused: bool,
+    pub time: u32,
 }
 
 impl State {
     pub fn advance(&mut self) {
 
-        println!("{}", self.mouse_state);
-        println!("{}", self.keyboard_state);
+
+        #[cfg(debug_assertions)] {
+            println!("{}", self.mouse_state);
+            println!("{}", self.keyboard_state);
+            println!("{}", self.time);
+        }
+
         self.mouse_state.advance_state();
         self.keyboard_state.advance_state();
-
     }
 }
