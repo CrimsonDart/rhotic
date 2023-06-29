@@ -2,7 +2,7 @@ use image::buffer;
 use softbuffer::Buffer;
 use winit::window;
 
-use crate::display::{Rect, Point};
+use crate::display::{Rect, Point, types::RectIter};
 
 use self::background::Background;
 
@@ -11,15 +11,12 @@ use super::application::State;
 pub mod button;
 pub mod background;
 
-
-
 pub trait Widget {
     fn get_rect(&self) -> Rect;
     fn draw(&self, buffer: DrawBuffer, state: &State);
 }
 
-pub fn draw_to_buffer<'a, T>(widget: &T, buffer: &mut Buffer<'a>, window_size: Point<u32>, state: &State)
-where T: Widget {
+pub fn draw_to_buffer<'a>(widget: &Box<dyn Widget>, buffer: &mut Buffer<'a>, window_size: Point<u32>, state: &State) {
 
     let buffref = buffer as *mut Buffer<'a>;
 
@@ -33,9 +30,9 @@ where T: Widget {
 }
 
 pub struct DrawBuffer<'a> {
-    buffer: *mut Buffer<'a>,
-    rect: Rect,
-    window_size: Point<u32>
+    pub buffer: *mut Buffer<'a>,
+    pub rect: Rect,
+    pub window_size: Point<u32>
 }
 
 impl<'a> DrawBuffer<'a> {
@@ -59,10 +56,16 @@ impl<'a> DrawBuffer<'a> {
             }
         }
     }
+
+    pub fn iter(&self) -> RectIter {
+        let mut rect = self.rect.clone();
+        rect.offset = Point::new(0, 0);
+        rect.into_iter()
+    }
 }
 
 pub struct WidgetCollection {
-    pub background: Background,
+    pub background: Background, // should always be a Background object.
     pub layer1: Vec<Box<dyn Widget>>,
     pub layer2: Vec<Box<dyn Widget>>,
     pub layer3: Vec<Box<dyn Widget>>,

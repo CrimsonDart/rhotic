@@ -1,4 +1,4 @@
-use crate::{display::Rect, state::application::State};
+use crate::{display::{Rect, Point}, state::application::State};
 
 use super::{Widget, DrawBuffer};
 
@@ -22,9 +22,11 @@ impl Widget for Button {
         self.rect
     }
 
-    fn draw(&self, buffer: DrawBuffer, state: &State) {
+    fn draw(&self, mut buffer: DrawBuffer, state: &State) {
 
-
+        for Point {x, y} in buffer.iter() {
+            buffer.draw_to(x, y, 0xFFFFFFFF);
+        } 
 
 
 
