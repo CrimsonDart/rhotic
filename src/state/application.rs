@@ -2,6 +2,8 @@ use rusttype::Font;
 
 use crate::display::{Rgba, event_loop::{MouseState, KeyboardState}};
 
+use super::widgets::WidgetCollection;
+
 
 
 
@@ -17,6 +19,7 @@ pub struct State {
     pub keyboard_state: KeyboardState,
     pub is_focused: bool,
     pub time: u32,
+    pub widgets: WidgetCollection,
 }
 
 impl State {

@@ -9,7 +9,7 @@ use image::codecs::png::{PngDecoder, PngReader};
 use image::{self, ImageResult, DynamicImage, ImageDecoder, ImageError};
 
 
-use super::{Rgba, Point, Rect};
+use super::{Rgba, Point};
 
 
 fn load_png(path: &str) -> Result<ImageHandle, ImageError> {

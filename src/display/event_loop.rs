@@ -4,9 +4,9 @@ use winit::{
     window::WindowBuilder,
     event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}, dpi::{LogicalSize, PhysicalSize}};
 
-use crate::state::{application::State, widgets::{Widget, self, WidgetCollection}};
+use crate::state::{application::State, widgets::{Widget, self, WidgetCollection, button::Button}};
 
-use super::{render, font::load_ttf, Rgba, Point, Rect};
+use super::{render, font::load_ttf, Rgba, Point};
 
 pub fn start_event_loop() -> Result<(), OsError> {
     let event_loop = EventLoop::new();
@@ -33,13 +33,15 @@ pub fn start_event_loop() -> Result<(), OsError> {
         keyboard_state: KeyboardState::new(),
         is_focused: false,
         time: 0xFF000000,
+        widgets: WidgetCollection::new()
     };
 
-    let mut widgets = WidgetCollection::new();
-    widgets.background.rect = {
+    state.widgets.background.size = {
         let w = window.inner_size();
-        Rect::new(0, 0, w.width, w.height)
+        Point::new(w.width, w.height)
     };
+
+    state.widgets.layer1.push(Box::new(Button::new_u32(50, 500, 20, 20)));
 
     event_loop.run(move |event, _window_target, control_flow| {
 
@@ -62,9 +64,9 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
                 match event {
                     Resized(_) => {
-                        widgets.background.rect = {
+                        state.widgets.background.size = {
                             let w = window.inner_size();
-                            Rect::new(0,0, w.width, w.height)
+                            Point::new(w.width, w.height)
                         };
                         window.request_redraw();
                     },
@@ -149,7 +151,7 @@ pub fn start_event_loop() -> Result<(), OsError> {
                 ).unwrap();
 
                 let buffer = surface.buffer_mut().unwrap();
-                render(buffer, size, &state, &widgets);
+                render(buffer, size, &state);
             },
             _ => {}
         }

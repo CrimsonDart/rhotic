@@ -2,7 +2,7 @@ use image::buffer;
 use softbuffer::Buffer;
 use winit::window;
 
-use crate::display::{Rect, Point, types::RectIter};
+use crate::display::{Point, types::{RectIter, DisplayRect, DisplayPosition, DisplaySized}};
 
 use self::background::Background;
 
@@ -11,8 +11,7 @@ use super::application::State;
 pub mod button;
 pub mod background;
 
-pub trait Widget {
-    fn get_rect(&self) -> Rect;
+pub trait Widget where Self: DisplayPosition + DisplaySized {
     fn draw(&self, buffer: DrawBuffer, state: &State);
 }
 
@@ -23,7 +22,8 @@ pub fn draw_to_buffer<'a>(widget: &Box<dyn Widget>, buffer: &mut Buffer<'a>, win
 
     let draw_buffer = DrawBuffer {
         buffer: buffref,
-        rect: widget.get_rect(),
+        size: widget.get_size(),
+        position: widget.get_position(),
         window_size
     };
     widget.draw(draw_buffer, state);
@@ -31,36 +31,47 @@ pub fn draw_to_buffer<'a>(widget: &Box<dyn Widget>, buffer: &mut Buffer<'a>, win
 
 pub struct DrawBuffer<'a> {
     pub buffer: *mut Buffer<'a>,
-    pub rect: Rect,
+    pub size: Point<u32>,
+    pub position: Point<u32>,
     pub window_size: Point<u32>
 }
 
 impl<'a> DrawBuffer<'a> {
     pub fn draw_to(&mut self, x: u32, y: u32, color: u32) {
 
-        let size = &self.rect.size;
-        let offset = &self.rect.offset;
-        let window_size = &self.window_size;
+        let size = self.size;
+        let offset = self.position;
+        let window_size = self.window_size;
 
-        if x > size.x {return;}
-        if y > size.y {return;}
-        if x > window_size.x {return;}
-        if y > window_size.y {return;}
+        let display_point = Point::new(x + offset.x, y + offset.y);
 
-        let index = (offset.y + y) * size.x + (offset.x + x);
+        if display_point.x >= window_size.x {
+            return;
+        }
 
-        unsafe {
-            let length = <*const Buffer<'a>>::as_ref(self.buffer).unwrap().len();
-            if (index as usize) < length {
-                <*mut Buffer<'a>>::as_mut(self.buffer).unwrap()[index as usize] = color;
-            }
+        let index = display_point.y * window_size.x + display_point.x;
+        let index = index as usize;
+
+        let buffer = unsafe {
+            <*mut Buffer<'a>>::as_mut(self.buffer).unwrap()
+        };
+
+        let length = buffer.len();
+        if (index) < length {
+            buffer[index] = color;
         }
     }
+}
 
-    pub fn iter(&self) -> RectIter {
-        let mut rect = self.rect.clone();
-        rect.offset = Point::new(0, 0);
-        rect.into_iter()
+impl<'a> DisplayPosition for DrawBuffer<'a> {
+    fn get_position(&self) -> Point<u32> {
+        self.position
+    }
+}
+
+impl<'a> DisplaySized for DrawBuffer<'a> {
+    fn get_size(&self) -> Point<u32> {
+        self.size
     }
 }
 
@@ -76,7 +87,7 @@ impl WidgetCollection {
     pub fn new() -> Self {
 
         Self {
-            background: Background { rect: Rect::new(0,0,0,0) },
+            background: Background::default(),
             layer1: vec!(),
             layer2: vec!(),
             layer3: vec!(),

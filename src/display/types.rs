@@ -1,6 +1,5 @@
-use std::array::IntoIter;
 use std::fmt::{Formatter, Display};
-use std::ops::{Add, Range, Mul};
+use std::ops::Add;
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Rgba {
@@ -80,15 +79,17 @@ pub struct Point<T> {
 }
 
 impl<T> Point<T> {
+
+    #[inline]
     pub fn new(x: T, y: T) -> Self {
         Self {x, y}
     }
+}
 
-    pub fn get_size(&self) -> T
-        where T: Mul<Output = T> + Copy {
-
-        self.x * self.y
-
+impl DisplaySized for Point<u32> {
+    #[inline]
+    fn get_size(&self) -> Point<u32> {
+        self.clone()
     }
 }
 
@@ -101,56 +102,40 @@ impl<T: Add<Output = T>> Add for Point<T> {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct Rect {
-    pub offset: Point<u32>,
-    pub size: Point<u32>
-}
+pub trait DisplaySized {
+    fn get_size(&self) -> Point<u32>;
 
-impl Rect {
-    pub fn new(ox: u32, oy: u32, sx: u32, sy: u32) -> Self {
-        Self {
-            offset: Point::new(ox, oy),
-            size: Point::new(sx, sy)
-        }
+    #[inline]
+    fn get_area(&self) -> u32 {
+        let number = self.get_size();
+        number.x * number.y
+    }
+
+    #[inline]
+    fn iter(&self) -> AreaIter {
+        AreaIter { size: self.get_size(), index: Point { x: 0, y: 0 } }
     }
 }
 
-
-impl IntoIterator for Rect {
-
-    type IntoIter = RectIter;
-    type Item = Point<u32>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        RectIter {rect: self, index: Point::new(0,0)}
-    }
-}
-
-pub struct RectIter  {
-    rect: Rect,
+pub struct AreaIter {
+    size: Point<u32>,
     index: Point<u32>
 }
 
-impl Iterator for RectIter {
+impl Iterator for AreaIter {
 
     type Item = Point<u32>;
-
 
     fn next(&mut self) -> Option<Self::Item> {
 
         let mut index = &mut self.index;
-        let size = &self.rect.size;
-        let offset = &self.rect.offset;
-
-
-        // this means that the next iteration will be outside the range of the Rect.
+        let size = &self.size;
 
         if index.y > size.y {
             return None;
         }
 
-        let out = Some(*index + *offset);
+        let out = Some(*index);
 
         index.x = index.x + 1;
         if index.x > size.x {
@@ -162,6 +147,49 @@ impl Iterator for RectIter {
     }
 }
 
+pub trait DisplayPosition {
+    fn get_position(&self) -> Point<u32>;
+}
+
+pub trait DisplayRect {
+    fn iter(&self) -> RectIter;
+}
+
+impl<T> DisplayRect for T
+    where T: DisplayPosition + DisplaySized {
+
+    fn iter(&self) -> RectIter {
+        RectIter {
+            area_iter: AreaIter {
+                size: self.get_size(),
+                index: Point::new(0,0)
+            },
+            offset: self.get_position()
+        }
+    }
+}
+
+pub struct RectIter  {
+    offset: Point<u32>,
+    area_iter: AreaIter
+}
+
+impl Iterator for RectIter {
+
+    type Item = Point<u32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        let out = self.area_iter.next();
+
+        match out {
+            Some(p) => {
+                Some(p + self.offset)
+            },
+            None => None
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -188,8 +216,5 @@ mod test {
         color.set_green(128);
         color.set_red(32);
         assert_eq!(color.green(), 128);
-
-
     }
-
 }
