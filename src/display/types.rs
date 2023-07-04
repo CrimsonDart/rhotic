@@ -1,6 +1,8 @@
 use std::fmt::{Formatter, Display};
 use std::ops::Add;
 
+pub type Pixel = Point<u32>;
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Rgba {
     value: u32

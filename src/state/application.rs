@@ -1,6 +1,7 @@
 use rusttype::Font;
 
 use crate::display::{Rgba, event_loop::{MouseState, KeyboardState}};
+use crate::display::event_loop::Input;
 
 use super::widgets::WidgetCollection;
 
@@ -13,10 +14,7 @@ use super::widgets::WidgetCollection;
 
 // A singeton that contains all data of the application.
 pub struct State {
-    pub font: Font<'static>,
-    pub display_text: String,
-    pub mouse_state: MouseState,
-    pub keyboard_state: KeyboardState,
+    pub input: Input,
     pub is_focused: bool,
     pub time: u32,
     pub widgets: WidgetCollection,

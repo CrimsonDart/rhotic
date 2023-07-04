@@ -6,7 +6,7 @@ use winit::{
 
 use crate::state::{application::State, widgets::{Widget, self, WidgetCollection, button::Button}};
 
-use super::{render, font::load_ttf, Rgba, Point};
+use super::{render, font::load_ttf, Rgba, Point, types::Pixel};
 
 pub fn start_event_loop() -> Result<(), OsError> {
     let event_loop = EventLoop::new();
@@ -159,6 +159,20 @@ pub fn start_event_loop() -> Result<(), OsError> {
 }
 
 // Mouse Input handling
+//
+//
+
+pub struct Input {
+    pub mouse_position: Pixel,
+    pub scroll_delta: Option<MouseScrollDelta>,
+
+    pub m1: ButtonState,
+    pub m2: ButtonState,
+    pub m3: ButtonState,
+
+    pub keys: HashMap<KeyType, ButtonState>
+
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct MouseState {
