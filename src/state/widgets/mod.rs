@@ -1,8 +1,10 @@
+use std::rc::Rc;
+
 use image::buffer;
 use softbuffer::Buffer;
 use winit::window;
 
-use crate::display::{Point, types::{RectIter, DisplayRect, DisplayPosition, DisplaySized}};
+use crate::display::{Point, types::{RectIter, DisplayRect, DisplayPosition, DisplaySized, Pixel}};
 
 use self::background::Background;
 
@@ -11,11 +13,11 @@ use super::application::State;
 pub mod button;
 pub mod background;
 
-pub trait Widget where Self: DisplayPosition + DisplaySized {
+pub trait Widget where Self: DisplayPosition + DisplaySized + DisplayRect {
     fn draw(&self, buffer: DrawBuffer, state: &State);
 }
 
-pub fn draw_to_buffer<'a>(widget: &Box<dyn Widget>, buffer: &mut Buffer<'a>, window_size: Point<u32>, state: &State) {
+pub fn draw_to_buffer<'a>(widget: Rc<dyn Widget>, buffer: &mut Buffer<'a>, window_size: Point<u32>, state: &State) {
 
     let buffref = buffer as *mut Buffer<'a>;
 
@@ -77,10 +79,7 @@ impl<'a> DisplaySized for DrawBuffer<'a> {
 
 pub struct WidgetCollection {
     pub background: Background, // should always be a Background object.
-    pub layer1: Vec<Box<dyn Widget>>,
-    pub layer2: Vec<Box<dyn Widget>>,
-    pub layer3: Vec<Box<dyn Widget>>,
-    pub overlay: Vec<Box<dyn Widget>>
+    pub layer1: Vec<Rc<dyn Widget>>
 }
 
 impl WidgetCollection {
@@ -88,10 +87,18 @@ impl WidgetCollection {
 
         Self {
             background: Background::default(),
-            layer1: vec!(),
-            layer2: vec!(),
-            layer3: vec!(),
-            overlay: vec!()
+            layer1: vec!()
         }
    }
+
+    pub fn get_mouse_hover(&self, mouse_position: Pixel) -> Option<Rc<dyn Widget>> {
+
+        for widget in self.layer1.iter() {
+            if widget.contains(mouse_position) {
+                return Some(widget.clone());
+            }
+        }
+
+        None
+    }
 }

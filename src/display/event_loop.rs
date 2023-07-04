@@ -1,22 +1,22 @@
-use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap, ops::Deref, time::{Instant, Duration}};
+use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap, rc::Rc};
 use softbuffer::{Context, Surface};
 use winit::{
     window::WindowBuilder,
-    event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}, dpi::{LogicalSize, PhysicalSize}};
+    event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}, dpi::PhysicalSize};
 
-use crate::state::{application::State, widgets::{Widget, self, WidgetCollection, button::Button}};
+use crate::state::{application::State, widgets::button::Button};
 
-use super::{render, font::load_ttf, Rgba, Point, types::Pixel};
+use super::{render, Point, types::Pixel};
 
 pub fn start_event_loop() -> Result<(), OsError> {
     let event_loop = EventLoop::new();
 
-    let window = WindowBuilder::new()
+    let window =
+        WindowBuilder::new()
         .with_title("Rhotic Text Editor")
         .with_window_icon(None)
         .with_min_inner_size(PhysicalSize::new(200, 200))
-        .build(&event_loop)?
-        ;
+        .build(&event_loop)?;
 
     let context = unsafe {
         Context::new(&window)
@@ -26,22 +26,14 @@ pub fn start_event_loop() -> Result<(), OsError> {
         Surface::new(&context, &window)
     }.unwrap();
 
-    let mut state = State {
-        font: load_ttf("assets/fonts/Inconsolata-Regular.ttf").unwrap(),
-        display_text: String::from("EEEEEE"),
-        mouse_state: MouseState::default(),
-        keyboard_state: KeyboardState::new(),
-        is_focused: false,
-        time: 0xFF000000,
-        widgets: WidgetCollection::new()
-    };
+    let mut state = State::default();
 
     state.widgets.background.size = {
         let w = window.inner_size();
         Point::new(w.width, w.height)
     };
 
-    state.widgets.layer1.push(Box::new(Button::new_u32(50, 500, 20, 20)));
+    state.widgets.layer1.push(Rc::new(Button::new_u32(50, 500, 20, 20)));
 
     event_loop.run(move |event, _window_target, control_flow| {
 
@@ -84,11 +76,11 @@ pub fn start_event_loop() -> Result<(), OsError> {
                     },
 
                     CursorMoved { device_id: _, position, modifiers: _ } => {
-                        state.mouse_state.position = Point::new(position.x as u32, position.y as u32);
+                        state.input.mouse_position = Point::new(position.x as u32, position.y as u32);
                     },
 
                     MouseWheel { device_id: _, delta, phase: _, modifiers: _ } => {
-                        state.mouse_state.scroll_delta = Some(delta);
+                        state.input.scroll_delta = Some(delta);
                     },
 
                     MouseInput { device_id: _, state: pressed, button, modifiers: _ } => {
@@ -103,13 +95,13 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
                         match button {
                             Left => {
-                                state.mouse_state.left_button = press;
+                                state.input.m1 = press;
                             },
                             Right => {
-                                state.mouse_state.right_button = press;
+                                state.input.m2 = press;
                             },
                             Middle => {
-                                state.mouse_state.middle_button = press;
+                                state.input.m3 = press;
                             },
                             _ => {}
                         }
@@ -126,7 +118,7 @@ pub fn start_event_loop() -> Result<(), OsError> {
                     ButtonState::Released
                 };
 
-                let keys = &mut state.keyboard_state.keys;
+                let keys = &mut state.input.keys;
 
                 match key.virtual_keycode {
                     Some(k) => {
@@ -158,10 +150,7 @@ pub fn start_event_loop() -> Result<(), OsError> {
     });
 }
 
-// Mouse Input handling
-//
-//
-
+#[derive(PartialEq, Debug)]
 pub struct Input {
     pub mouse_position: Pixel,
     pub scroll_delta: Option<MouseScrollDelta>,
@@ -174,45 +163,41 @@ pub struct Input {
 
 }
 
-#[derive(Clone, PartialEq, Debug)]
-pub struct MouseState {
-    pub position: Point<u32>, // in pixel position (top left is 0,0)
-    pub scroll_delta: Option<MouseScrollDelta>,
-
-    pub left_button: ButtonState,
-    pub right_button: ButtonState,
-    pub middle_button: ButtonState,
-}
-
-impl MouseState {
+impl Input {
     pub fn advance_state(&mut self) {
 
         self.scroll_delta = None;
 
-        self.left_button = self.left_button.advance_state();
-        self.right_button = self.right_button.advance_state();
-        self.middle_button = self.middle_button.advance_state();
+        self.m1 = self.m1.advance_state();
+        self.m2 = self.m2.advance_state();
+        self.m3 = self.m3.advance_state();
+
+        for (_key, value) in self.keys.iter_mut() {
+            *value = value.advance_state();
+        }
 
     }
 }
 
-impl Default for MouseState {
-
+impl Default for Input {
     fn default() -> Self {
         use ButtonState::*;
 
-        MouseState { position: Point::new(0, 0),
+        Self { mouse_position: Point::new(0, 0),
                      scroll_delta: None,
-                     left_button: Depressed,
-                     right_button: Depressed,
-                     middle_button: Depressed }
+                     m1: Depressed,
+                     m2: Depressed,
+                     m3: Depressed,
+               keys: HashMap::new()
+        }
     }
 }
 
-impl Display for MouseState {
+#[cfg(debug_assertions)]
+impl Display for Input {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 
-        write!(f, "position: {}, {}", self.position.x, self.position.y)?;
+        write!(f, "position: {}, {}", self.mouse_position.x, self.mouse_position.y)?;
 
         match self.scroll_delta {
             Some(MouseScrollDelta::LineDelta(a, b)) => {
@@ -224,42 +209,17 @@ impl Display for MouseState {
             _ => {}
         }
 
-        if self.left_button != ButtonState::Depressed {
-            write!(f, " | M1: {}", self.left_button)?;
+        if self.m1 != ButtonState::Depressed {
+            write!(f, " | M1: {}", self.m1)?;
         }
-        if self.right_button != ButtonState::Depressed {
-            write!(f, " | M2: {}", self.right_button)?;
+        if self.m2 != ButtonState::Depressed {
+            write!(f, " | M2: {}", self.m2)?;
         }
-        if self.middle_button != ButtonState::Depressed {
-            write!(f, " | M3: {}", self.middle_button)?;
+        if self.m3 != ButtonState::Depressed {
+            write!(f, " | M3: {}", self.m3)?;
         }
-        Ok(())
-    }
-}
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct KeyboardState {
-    pub keys: HashMap<KeyType, ButtonState>
-}
-
-impl KeyboardState {
-    pub fn new() -> Self {
-        Self {
-            keys: HashMap::new()
-        }
-    }
-
-    pub fn advance_state(&mut self) {
-
-        for (_key, value) in self.keys.iter_mut() {
-            *value = value.advance_state();
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-impl Display for KeyboardState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, " | ")?;
 
         for value in self.keys.iter() {
             if value.1 != &ButtonState::Depressed {

@@ -32,17 +32,9 @@ pub fn render(mut buffer: Buffer, window_size: Point<u32>, state: &State) {
     widgets.background.draw(draw_buffer, state);
 
     for widget in widgets.layer1.iter() {
-        draw_to_buffer(widget, &mut buffer, window_size, state);
+        draw_to_buffer(widget.clone(), &mut buffer, window_size, state);
     }
-    for widget in widgets.layer2.iter() {
-        draw_to_buffer(widget, &mut buffer, window_size, state);
-    }
-    for widget in widgets.layer3.iter() {
-        draw_to_buffer(widget, &mut buffer, window_size, state);
-    }
-    for widget in widgets.overlay.iter() {
-        draw_to_buffer(widget, &mut buffer, window_size, state);
-    }
+
 
     buffer.present().unwrap();
 }

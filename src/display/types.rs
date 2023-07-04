@@ -153,23 +153,32 @@ pub trait DisplayPosition {
     fn get_position(&self) -> Point<u32>;
 }
 
-pub trait DisplayRect {
-    fn iter(&self) -> RectIter;
-}
-
-impl<T> DisplayRect for T
-    where T: DisplayPosition + DisplaySized {
-
+pub trait DisplayRect where Self: DisplayPosition + DisplaySized {
     fn iter(&self) -> RectIter {
         RectIter {
+            offset: self.get_position(),
             area_iter: AreaIter {
                 size: self.get_size(),
                 index: Point::new(0,0)
-            },
-            offset: self.get_position()
+            }
         }
     }
+
+    fn contains(&self, pixel: Pixel) -> bool {
+
+        let position = self.get_position();
+        let size = self.get_size() + position;
+
+        pixel.x >= position.x &&
+        pixel.y >= position.x &&
+        pixel.x <= size.x &&
+        pixel.y <= size.y
+    }
 }
+
+impl<T> DisplayRect for T where T: DisplayPosition + DisplaySized {}
+
+
 
 pub struct RectIter  {
     offset: Point<u32>,
@@ -179,11 +188,9 @@ pub struct RectIter  {
 impl Iterator for RectIter {
 
     type Item = Point<u32>;
-
     fn next(&mut self) -> Option<Self::Item> {
 
         let out = self.area_iter.next();
-
         match out {
             Some(p) => {
                 Some(p + self.offset)
