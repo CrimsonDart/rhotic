@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, cell::{RefCell, Cell}};
 
 use image::buffer;
 use softbuffer::Buffer;
@@ -15,13 +15,12 @@ pub mod background;
 
 pub trait Widget where Self: DisplayPosition + DisplaySized + DisplayRect {
     fn draw(&self, buffer: DrawBuffer, state: &State);
+    fn mouse_hover(&mut self, state: &State);
 }
 
-pub fn draw_to_buffer<'a>(widget: Rc<dyn Widget>, buffer: &mut Buffer<'a>, window_size: Point<u32>, state: &State) {
+pub fn draw_to_buffer<'a>(widget: HeapWidget, buffer: &mut Buffer<'a>, window_size: Point<u32>, state: &State) {
 
     let buffref = buffer as *mut Buffer<'a>;
-
-
     let draw_buffer = DrawBuffer {
         buffer: buffref,
         size: widget.get_size(),
@@ -41,7 +40,6 @@ pub struct DrawBuffer<'a> {
 impl<'a> DrawBuffer<'a> {
     pub fn draw_to(&mut self, x: u32, y: u32, color: u32) {
 
-        let size = self.size;
         let offset = self.position;
         let window_size = self.window_size;
 
@@ -77,28 +75,36 @@ impl<'a> DisplaySized for DrawBuffer<'a> {
     }
 }
 
+pub type HeapWidget = Rc<dyn Widget>;
+
 pub struct WidgetCollection {
-    pub background: Background, // should always be a Background object.
-    pub layer1: Vec<Rc<dyn Widget>>
+    pub background: Rc<Background>, // should always be a Background object.
+    pub layer1: Vec<HeapWidget>,
+
+    pub top_widget_cache: HeapWidget
+}
+
+impl Default for WidgetCollection {
+    fn default() -> Self {
+
+        let background = Rc::new(Background::default());
+        Self {
+            background: background.clone(),
+            layer1: vec!(),
+            top_widget_cache: background
+        }
+    }
 }
 
 impl WidgetCollection {
-    pub fn new() -> Self {
-
-        Self {
-            background: Background::default(),
-            layer1: vec!()
-        }
-   }
-
-    pub fn get_mouse_hover(&self, mouse_position: Pixel) -> Option<Rc<dyn Widget>> {
+    pub fn get_top_at(&self, mouse_position: Pixel) -> HeapWidget {
 
         for widget in self.layer1.iter() {
             if widget.contains(mouse_position) {
-                return Some(widget.clone());
+                return widget.clone();
             }
         }
-
-        None
+        self.background.clone()
     }
 }
+

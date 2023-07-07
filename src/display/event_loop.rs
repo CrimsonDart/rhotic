@@ -1,10 +1,10 @@
-use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap, rc::Rc};
+use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap, rc::Rc, cell::Cell};
 use softbuffer::{Context, Surface};
 use winit::{
     window::WindowBuilder,
     event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}, dpi::PhysicalSize};
 
-use crate::state::{application::State, widgets::button::Button};
+use crate::state::{application::State, widgets::{button::Button, background::{Background, self}}};
 
 use super::{render, Point, types::Pixel};
 
@@ -28,10 +28,10 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
     let mut state = State::default();
 
-    state.widgets.background.size = {
+    state.widgets.background.fit_to_window({
         let w = window.inner_size();
         Point::new(w.width, w.height)
-    };
+    });
 
     state.widgets.layer1.push(Rc::new(Button::new_u32(50, 500, 20, 20)));
 
@@ -56,10 +56,11 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
                 match event {
                     Resized(_) => {
-                        state.widgets.background.size = {
+                        state.widgets.background.fit_to_window({
                             let w = window.inner_size();
                             Point::new(w.width, w.height)
-                        };
+                        });
+
                         window.request_redraw();
                     },
 
