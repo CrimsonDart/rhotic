@@ -4,11 +4,24 @@ use winit::{
     window::WindowBuilder,
     event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}, dpi::PhysicalSize};
 
-use crate::state::{application::State, widgets::{button::Button, background::{Background, self}}};
+use crate::state::{application::State, widgets::{button::Button, background::{Background, self}, glyph::Glyph}};
 
-use super::{render, Point, types::Pixel};
+use super::{render, Point, types::Pixel, vulkan::get_graphics};
 
 pub fn start_event_loop() -> Result<(), OsError> {
+
+    get_graphics();
+
+
+
+
+
+
+
+
+
+
+
     let event_loop = EventLoop::new();
 
     let window =
@@ -26,14 +39,14 @@ pub fn start_event_loop() -> Result<(), OsError> {
         Surface::new(&context, &window)
     }.unwrap();
 
-    let mut state = State::default();
+    let mut state = State::new();
 
     state.widgets.background.fit_to_window({
         let w = window.inner_size();
         Point::new(w.width, w.height)
     });
 
-    state.widgets.layer1.push(Rc::new(Button::new_u32(50, 500, 20, 20)));
+    state.widgets.layer1.push(Rc::new(Glyph::new(50, 50, 'A', u32::MAX)));
 
     event_loop.run(move |event, _window_target, control_flow| {
 

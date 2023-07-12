@@ -1,4 +1,4 @@
-use crate::{display::{Point, types::{DisplayPosition, DisplaySized}}, state::application::State};
+use crate::{display::{Point, types::{DisplayPosition, DisplaySized}}, state::application::State, basic::Name};
 
 use super::{Widget, DrawBuffer};
 
@@ -33,18 +33,22 @@ impl DisplaySized for Button {
     }
 }
 
+impl Name for Button {
+    fn name(&self) -> &'static str {
+        "Button"
+    }
+}
+
 impl Widget for Button {
 
     fn draw(&self, mut buffer: DrawBuffer, state: &State) {
         for Point {x, y} in buffer.size.iter() {
 
-            if state.is_focused {
+            if state.is_colored {
                 buffer.draw_to(x, y, 0xFFFF0000);
             } else {
                 buffer.draw_to(x, y, 0xFF00FF00);
             }
         }
     }
-
-    fn mouse_hover(&mut self, state: &State) {}
 }

@@ -1,8 +1,7 @@
 
-use std::default;
 
 use crate::display::event_loop::Input;
-use super::widgets::WidgetCollection;
+use super::widgets::{WidgetCollection, HeapWidget};
 
 
 
@@ -14,7 +13,7 @@ pub struct State {
     pub input: Input,
     pub is_focused: bool,
     pub widgets: WidgetCollection,
-    pub is_colored: bool
+    pub is_colored: bool,
 }
 
 impl State {
@@ -39,6 +38,12 @@ impl State {
         let mouse_hovered = self.widgets.get_top_at(self.input.mouse_position);
 
 
+        self.is_colored = mouse_hovered.name() == "Button";
+
+
+
+
+
 
 
 
@@ -51,4 +56,3 @@ impl State {
         self.input.advance_state();
     }
 }
-

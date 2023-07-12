@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use crate::display::{Point, types::{DisplayPosition, DisplaySized, Pixel}};
+use crate::{display::{Point, types::{DisplayPosition, DisplaySized, Pixel}}, basic::Name};
 
 use super::Widget;
 
@@ -34,6 +34,12 @@ impl DisplaySized for Background {
     }
 }
 
+impl Name for Background {
+    fn name(&self) -> &'static str {
+        "Background"
+    }
+}
+
 impl Widget for Background {
     fn draw(&self, mut buffer: super::DrawBuffer, state: &crate::state::application::State) {
 
@@ -41,5 +47,4 @@ impl Widget for Background {
             buffer.draw_to(x, y, 0xFF323232);
         }
     }
-    fn mouse_hover(&mut self, state: &crate::state::application::State) {}
 }

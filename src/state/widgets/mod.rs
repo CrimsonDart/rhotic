@@ -4,7 +4,7 @@ use image::buffer;
 use softbuffer::Buffer;
 use winit::window;
 
-use crate::display::{Point, types::{RectIter, DisplayRect, DisplayPosition, DisplaySized, Pixel}};
+use crate::{display::{Point, types::{RectIter, DisplayRect, DisplayPosition, DisplaySized, Pixel}}, basic::Name};
 
 use self::background::Background;
 
@@ -12,10 +12,11 @@ use super::application::State;
 
 pub mod button;
 pub mod background;
+pub mod glyph;
 
-pub trait Widget where Self: DisplayPosition + DisplaySized + DisplayRect {
+
+pub trait Widget where Self: DisplayRect + Name {
     fn draw(&self, buffer: DrawBuffer, state: &State);
-    fn mouse_hover(&mut self, state: &State);
 }
 
 pub fn draw_to_buffer<'a>(widget: HeapWidget, buffer: &mut Buffer<'a>, window_size: Point<u32>, state: &State) {
@@ -108,3 +109,8 @@ impl WidgetCollection {
     }
 }
 
+pub enum WidgetEvent {
+    Hover,
+    UnHover,
+    Input
+}
