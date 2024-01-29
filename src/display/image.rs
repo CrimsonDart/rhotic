@@ -1,12 +1,11 @@
 
 
 use std::fs::File;
-use enum_iterator::*;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::AsBytes;
 
 
-use image::codecs::png::{PngDecoder, PngReader};
-use image::{self, ImageResult, DynamicImage, ImageDecoder, ImageError};
+use image::codecs::png::PngDecoder;
+use image::{self, ImageDecoder, ImageError};
 
 
 use super::{Rgba, Point};

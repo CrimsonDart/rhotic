@@ -130,7 +130,8 @@ impl Iterator for AreaIter {
 
     fn next(&mut self) -> Option<Self::Item> {
 
-        let mut index = &mut self.index;
+
+        let index = &mut self.index;
         let size = &self.size;
 
         if index.y > size.y {
@@ -174,6 +175,34 @@ pub trait DisplayRect where Self: DisplayPosition + DisplaySized {
         pixel.x <= size.x &&
         pixel.y <= size.y
     }
+
+    /// Translates a Local Coordinate (local: Pixel) to be relative to the parent.
+    /// This translation assumes a few things:
+    /// the self.get_position() is relative to 0,0 of the parent.
+    #[inline]
+    fn map_to_parent<P>(&self, parent: &P, local: Pixel) -> Pixel where P: DisplaySized {
+        local + self.get_position()
+    }
+
+    fn index_map_to_parent<P>(&self, parent: &P, local: u32) -> Option<u32> where P: DisplaySized {
+        let local = Pixel::new(
+            local as u32 / self.get_size().x,
+            local as u32 % self.get_size().x
+        );
+
+        let global_pixel = self.map_to_parent(parent, local);
+
+        if parent.get_size().y <= global_pixel.y {
+            return None;
+        }
+
+        let global = parent.get_size().x * global_pixel.x + global_pixel.y;
+        Some(global)
+    }
+
+
+
+
 }
 
 impl<T> DisplayRect for T where T: DisplayPosition + DisplaySized {}

@@ -1,57 +1,53 @@
+use std::collections::HashMap;
 
+use fontdue::{Font, layout::GlyphRasterConfig, Metrics};
+use winit::keyboard::{PhysicalKey, KeyCode};
 
-use crate::display::event_loop::Input;
-use super::widgets::{WidgetCollection, HeapWidget};
-
-
-
-
+use crate::{display::{event_loop::{Input, ButtonState}, font::load_ttf}, buffer::Buffer};
 
 // A singeton that contains all data of the application.
-#[derive(Default)]
 pub struct State {
     pub input: Input,
     pub is_focused: bool,
-    pub widgets: WidgetCollection,
     pub is_colored: bool,
+    pub font: Font,
+    pub char_cache: HashMap<GlyphRasterConfig, (Metrics, Vec<u8>)>,
+    pub glyph_scale: f32,
+    pub buffer: Buffer
 }
 
 impl State {
 
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> anyhow::Result<Self> {
+        let font = load_ttf("./assets/fonts/FiraCode-Regular.ttf")?;
+        Ok(Self {
             is_focused: false,
-            ..Default::default()
-        }
+            is_colored: false,
+            font,
+            input: Input::default(),
+            char_cache: HashMap::new(),
+            glyph_scale: 20.0,
+            buffer: Default::default(),
+        })
     }
-
-
 
     pub fn advance(&mut self) {
 
 
-        #[cfg(debug_assertions)] {
-            println!("{}", self.input);
+        if !self.input.text.is_empty() {
+            println!("{}", self.input.text);
+            println!("{:?}", self.buffer.cursor);
+            self.buffer.text_in(self.input.text.as_str());
         }
 
-
-        let mouse_hovered = self.widgets.get_top_at(self.input.mouse_position);
-
-
-        self.is_colored = mouse_hovered.name() == "Button";
-
-
-
-
-
-
-
-
-
-
-
-
-
+        for (k, v) in self.input.keys.iter() {
+            if *v == ButtonState::Pressed {
+                println!("{:?}", self.buffer.cursor);
+                self.buffer.press_key(k.clone());
+            } else if let ButtonState::Echo(t) = *v {
+                self.buffer.echo_key(k.clone());
+            }
+        }
 
         self.input.advance_state();
     }

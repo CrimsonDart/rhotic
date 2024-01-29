@@ -1,28 +1,16 @@
-use std::{num::NonZeroU32, fmt::{Display, Debug}, collections::HashMap, rc::Rc, cell::Cell};
+use std::{num::NonZeroU32, fmt::{Display, Debug}, time::Instant};
 use softbuffer::{Context, Surface};
 use winit::{
     window::WindowBuilder,
-    event_loop::EventLoop, error::OsError, event::{MouseScrollDelta, ElementState, VirtualKeyCode}, dpi::PhysicalSize};
+    event_loop::EventLoop, event::{MouseScrollDelta, ElementState}, dpi::PhysicalSize, keyboard::PhysicalKey};
 
-use crate::state::{application::State, widgets::{button::Button, background::{Background, self}, glyph::Glyph}};
+use crate::state::application::State;
 
-use super::{render, Point, types::Pixel, vulkan::get_graphics};
+use super::{render, Point, types::Pixel};
 
-pub fn start_event_loop() -> Result<(), OsError> {
+pub fn start_event_loop() -> anyhow::Result<()> {
 
-    get_graphics();
-
-
-
-
-
-
-
-
-
-
-
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new()?;
 
     let window =
         WindowBuilder::new()
@@ -31,31 +19,20 @@ pub fn start_event_loop() -> Result<(), OsError> {
         .with_min_inner_size(PhysicalSize::new(200, 200))
         .build(&event_loop)?;
 
-    let context = unsafe {
-        Context::new(&window)
-    }.unwrap();
+    let context = Context::new(&window).unwrap();
 
-    let mut surface = unsafe {
-        Surface::new(&context, &window)
-    }.unwrap();
+    let mut surface = Surface::new(&context, &window).unwrap();
 
-    let mut state = State::new();
+    let mut state = State::new()?;
 
-    state.widgets.background.fit_to_window({
-        let w = window.inner_size();
-        Point::new(w.width, w.height)
-    });
+    event_loop.run(|event, elwt| {
 
-    state.widgets.layer1.push(Rc::new(Glyph::new(50, 50, 'A', u32::MAX)));
-
-    event_loop.run(move |event, _window_target, control_flow| {
-
-        control_flow.set_poll();
+        elwt.set_control_flow(winit::event_loop::ControlFlow::Poll);
 
         use winit::event::Event::*;
         match event {
 
-            MainEventsCleared => {
+            AboutToWait => {
                 state.advance();
                 window.request_redraw();
             },
@@ -68,17 +45,27 @@ pub fn start_event_loop() -> Result<(), OsError> {
                 use winit::event::WindowEvent::*;
 
                 match event {
-                    Resized(_) => {
-                        state.widgets.background.fit_to_window({
-                            let w = window.inner_size();
-                            Point::new(w.width, w.height)
-                        });
+                    RedrawRequested if window_id == window.id() => {
 
+                        let size = {
+                            let size = window.inner_size();
+                            Point::new(size.width, size.height)
+                        };
+
+                        surface.resize(
+                            NonZeroU32::new(size.x).unwrap(),
+                            NonZeroU32::new(size.y).unwrap()
+                        ).unwrap();
+
+                        let buffer = surface.buffer_mut().unwrap();
+                        render(buffer, size, &mut state);
+                    },
+                    Resized(_) => {
                         window.request_redraw();
                     },
 
                     CloseRequested => {
-                        control_flow.set_exit();
+                        elwt.exit();
                     },
 
                     Focused(is) => {
@@ -87,17 +74,20 @@ pub fn start_event_loop() -> Result<(), OsError> {
 
                         #[cfg(debug_assertions)]
                         println!("Focused: {}", is);
+                        window.request_redraw();
                     },
 
-                    CursorMoved { device_id: _, position, modifiers: _ } => {
+                    CursorMoved { device_id: _, position, } => {
                         state.input.mouse_position = Point::new(position.x as u32, position.y as u32);
+                        window.request_redraw();
                     },
 
-                    MouseWheel { device_id: _, delta, phase: _, modifiers: _ } => {
+                    MouseWheel { device_id: _, delta, phase: _} => {
                         state.input.scroll_delta = Some(delta);
+                        window.request_redraw();
                     },
 
-                    MouseInput { device_id: _, state: pressed, button, modifiers: _ } => {
+                    MouseInput { device_id: _, state: pressed, button } => {
 
                         use winit::event::MouseButton::*;
 
@@ -119,49 +109,39 @@ pub fn start_event_loop() -> Result<(), OsError> {
                             },
                             _ => {}
                         }
+                        window.request_redraw();
+                    },
+                    KeyboardInput { device_id: _, event, is_synthetic: _ } => {
+                        if event.state == ElementState::Pressed {
+                            if let Some(s) = event.logical_key.to_text() {
+                                state.input.text.push_str(s);
+                                if event.repeat {
+                                    for (k, v) in state.input.keys.iter_mut() {
+                                        if *k == event.physical_key {
+                                            if let ButtonState::Held(t) = *v {
+                                                *v = ButtonState::Echo(t);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    state.input.keys.push((event.physical_key, ButtonState::Pressed));
+                                }
+                            }
+                        } else {
+                            for (k,v) in state.input.keys.iter_mut() {
+                                if *k == event.physical_key {
+                                    *v = ButtonState::Released;
+                                }
+                            }
+                        }
                     },
                     _ => {}
                 }
             },
-
-            DeviceEvent { device_id: _, event } => if let winit::event::DeviceEvent::Key(key) = event {
-
-                let press = if key.state == ElementState::Pressed {
-                    ButtonState::Pressed
-                } else {
-                    ButtonState::Released
-                };
-
-                let keys = &mut state.input.keys;
-
-                match key.virtual_keycode {
-                    Some(k) => {
-                        keys.insert(KeyType::Keycode(k), press);
-                    },
-                    None => {
-                        keys.insert(KeyType::Scancode(key.scancode), press);
-                    }
-                }
-            },
-
-            RedrawRequested(window_id) if window_id == window.id() => {
-
-                let size = {
-                    let size = window.inner_size();
-                    Point::new(size.width, size.height)
-                };
-
-                surface.resize(
-                    NonZeroU32::new(size.x).unwrap(),
-                    NonZeroU32::new(size.y).unwrap()
-                ).unwrap();
-
-                let buffer = surface.buffer_mut().unwrap();
-                render(buffer, size, &state);
-            },
             _ => {}
         }
-    });
+    })?;
+    Ok(())
 }
 
 #[derive(PartialEq, Debug)]
@@ -173,8 +153,8 @@ pub struct Input {
     pub m2: ButtonState,
     pub m3: ButtonState,
 
-    pub keys: HashMap<KeyType, ButtonState>
-
+    pub keys: Vec<(PhysicalKey, ButtonState)>,
+    pub text: String,
 }
 
 impl Input {
@@ -186,10 +166,21 @@ impl Input {
         self.m2 = self.m2.advance_state();
         self.m3 = self.m3.advance_state();
 
-        for (_key, value) in self.keys.iter_mut() {
-            *value = value.advance_state();
-        }
+        let mut new_vec = Vec::new();
 
+        for (key, value) in self.keys.iter_mut() {
+            if *value != ButtonState::Released || *value != ButtonState::Depressed {
+                if *value == ButtonState::Pressed {
+                    new_vec.push((key.clone(), ButtonState::Held(Instant::now())));
+                } else if let ButtonState::Held(t) = *value {
+                    new_vec.push((key.clone(), ButtonState::Held(t)));
+                } else if let ButtonState::Echo(t) = *value {
+                    new_vec.push((key.clone(), ButtonState::Held(t)));
+                }
+            }
+        }
+        self.keys = new_vec;
+        self.text = String::new();
     }
 }
 
@@ -197,71 +188,24 @@ impl Default for Input {
     fn default() -> Self {
         use ButtonState::*;
 
-        Self { mouse_position: Point::new(0, 0),
-                     scroll_delta: None,
-                     m1: Depressed,
-                     m2: Depressed,
-                     m3: Depressed,
-               keys: HashMap::new()
+        Self {
+            mouse_position: Point::new(0, 0),
+            scroll_delta: None,
+            m1: Depressed,
+            m2: Depressed,
+            m3: Depressed,
+
+            keys: Vec::new(),
+            text: String::new()
         }
     }
-}
-
-#[cfg(debug_assertions)]
-impl Display for Input {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-
-        write!(f, "position: {}, {}", self.mouse_position.x, self.mouse_position.y)?;
-
-        match self.scroll_delta {
-            Some(MouseScrollDelta::LineDelta(a, b)) => {
-                write!(f, " | Scroll Line: {}, {}", a, b)?;
-            },
-            Some(MouseScrollDelta::PixelDelta(p)) => {
-                write!(f, " | Scroll Pixel: {}, {}", p.x, p.y)?;
-            }
-            _ => {}
-        }
-
-        if self.m1 != ButtonState::Depressed {
-            write!(f, " | M1: {}", self.m1)?;
-        }
-        if self.m2 != ButtonState::Depressed {
-            write!(f, " | M2: {}", self.m2)?;
-        }
-        if self.m3 != ButtonState::Depressed {
-            write!(f, " | M3: {}", self.m3)?;
-        }
-
-        write!(f, " | ")?;
-
-        for value in self.keys.iter() {
-            if value.1 != &ButtonState::Depressed {
-
-                match value.0 {
-                    KeyType::Scancode(n) => {
-                        write!(f, "SC({:?}): {} | ", n, value.1)?;
-                    },
-                    KeyType::Keycode(key) => {
-                        write!(f, "{:?}: {} | ", key, value.1)?;
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub enum KeyType {
-    Scancode(u32),
-    Keycode(VirtualKeyCode)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ButtonState {
     Pressed,
-    Held,
+    Echo(Instant),
+    Held(Instant),
     Released,
     Depressed
 }
@@ -270,7 +214,7 @@ impl ButtonState {
     fn advance_state(self) -> Self {
         use ButtonState::*;
         match self {
-            Pressed => Held,
+            Pressed => Held(Instant::now()),
             Released => Depressed,
             _ => self
         }
@@ -283,7 +227,8 @@ impl Display for ButtonState {
 
         write!(f, "{}", match self {
             Pressed => "P",
-            Held => "H",
+            Echo(_) => "E",
+            Held(_) => "H",
             Released => "R",
             Depressed => "D"
         })
