@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, str::Chars};
 
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -15,8 +15,9 @@ impl Page {
         }
     }
 
-    pub fn remove_line(&mut self, cursor: (usize, usize)) {
-
+    pub fn remove_line(&mut self, cursor: (usize, usize)) -> (usize, String) {
+        let l = self.text.remove(cursor.1);
+        (l.len, l.text)
     }
 
     pub fn insert_char_at(&mut self, cursor: (usize, usize), c: char) {
@@ -103,21 +104,31 @@ impl Line {
         self.text.as_str()
     }
 
-    pub fn push(&mut self, c: char) {
+
+    // returns false for a newline
+    pub fn push(&mut self, c: char) -> bool {
+        if c == '\r' || c == '\n' {
+            return false;
+        }
         self.text.push(c);
         self.len += 1;
+        true
     }
 
-    pub fn push_str(&mut self, s: &str) {
-        for c in s.chars() {
+    pub fn push_str(&mut self, s: &str) -> Option<Chars> {
+        let chars = s.chars();
+        for c in chars {
+            if c == '\r' || c == '\n' {
+                return Some(chars);
+            }
             self.push(c);
         }
+        None
     }
 
-    pub fn insert(&mut self, ch: char, index: usize) {
+    pub fn insert(&mut self, ch: char, index: usize) -> bool {
         if index >= self.len {
-            self.push(ch);
-            return;
+            return self.push(ch);
         }
         let chars = self.text.chars();
         self.clear();
@@ -127,18 +138,20 @@ impl Line {
             }
             self.push(ci);
         }
+        true
     }
 
-    pub fn insert_str(&mut self, s: &str, index: usize) {
+    pub fn insert_str<C: Iterator<Item = char>>(&mut self, s: &str, index: usize) -> Option<C> {
         if index >= self.len {
-            self.push_str(s);
-            return;
+            return self.push_str(s);
         }
         let chars = self.text.chars();
         self.clear();
         for ci in chars {
             if self.len == index {
-                self.push_str(s);
+                if let Some(chers) = self.push_str(s) {
+                    return Some(chers.chain(chars));
+                }
             }
             self.push(ci);
         }
