@@ -1,212 +1,253 @@
-use std::{ops::Range, str::Chars};
 
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Page {
-    text: Vec<Line>
+    text: Vec<String>
 }
 
 impl Page {
-    pub fn insert_new_line(&mut self, cursor: (usize, usize)) {
-        if cursor.1 == self.text.len() {
-            self.text.push(Default::default());
-        } else {
-            self.text.insert(cursor.1, Default::default());
-        }
-    }
 
-    pub fn remove_line(&mut self, cursor: (usize, usize)) -> (usize, String) {
-        let l = self.text.remove(cursor.1);
-        (l.len, l.text)
-    }
-
-    pub fn insert_char_at(&mut self, cursor: (usize, usize), c: char) {
-
-        if self.text[cursor.1].len == cursor.0 {
-            self.text[cursor.1].text.push(c);
+    pub fn insert_line(&mut self, mut line: usize, text: &str) {
+        if line == self.text.len() {
+            self.push_line(text);
             return;
         }
 
-        let chars = self.text[cursor.1].1.chars();
-        let mut new_str = String::new();
+        text.split('\n').for_each(|x| {
+            self.text.insert(line, x.into());
+            line += 1;
+        });
+    }
 
-        let mut counter = 0;
-        for ic in chars {
-            if counter == cursor.0 {
-                new_str.push(c);
-            }
-            counter += 1;
-            new_str.push(ic);
+    pub fn push_line(&mut self, text: &str) {
+        text.split('\n').for_each(|x| {
+            self.text.push(x.into())
+        });
+    }
+
+    pub fn remove_line(&mut self, line: usize) -> String {
+        self.remove_line(line)
+    }
+
+    pub fn get_line(&self, line: usize) -> Option<&str> {
+        self.text.get(line).map(|x| x.as_str())
+    }
+
+    pub fn pop_line(&mut self, line: usize) -> Option<String> {
+        self.text.pop()
+    }
+
+    pub fn insert_char(&mut self, line: usize, index: usize, c: char) {
+
+        let mut mut_line = match self.text.get_mut(line) {
+            Some(l) => l,
+            None => return
+        };
+
+        if index == mut_line.chars().count() {
+            self.push_char(line, c);
+            return;
         }
 
-        self.text[cursor.1].text = new_str;
-        self.text[cursor.1].len += 1;
+        if c == '\n' {
+
+
+
+
+
+            let chars = mut_line.chars();
+            mut_line.clear();
+
+            for character in chars {
+                if index == mut_line.len {
+                    break;
+                }
+                mut_line.text.push(character);
+                mut_line.len += 1;
+            }
+
+            let mut s = Line::default();
+            for character in chars {
+                s.text.push(character);
+                s.len += 1;
+            }
+            self.text.insert(line + 1, s);
+            return;
+        }
+
+        for (byte_index, _) in mut_line.char_indices().nth(index) {
+            mut_line.insert(byte_index, c);
+        }
     }
 
-    pub fn get_char_mut(&mut self, cursor: (usize, usize)) -> Option<&mut str> {
-        self.text[cursor.1].1.as_mut_str().get_mut(cursor.0..cursor.0 + 1)
+    pub fn push_char(&mut self, line: usize, c: char) {
+        if c == '\n' {
+            self.insert_line(line + 1, "");
+            return;
+        }
+
+        let mut l = match self.get_line_mut(line) {
+            Some(l) => l,
+            None => return
+        };
+        l.text.push(c);
+        l.len += 1;
     }
 
-    pub fn get_char(&self, cursor: (usize, usize)) -> char {
-        self.text[cursor.1].1.chars().nth(cursor.0).unwrap_or('\u{0}')
+    pub fn remove_char(&mut self, line: usize, index: usize) -> Option<char> {
+
+        let mut l = self.get_line_mut(line)?;
+        let byte_index = l.text.char_indices().nth(index)?.0;
+
+        let rem = l.text.remove(byte_index);
+        l.len -= 1;
+
+        Some(rem)
     }
 
-    pub fn remove_char(&mut self, cursor: (usize, usize)) -> char {
-        self.text[cursor.1].0 -= 1;
-        self.text[cursor.1].1.remove(cursor.0)
+    pub fn get_char(&self, line: usize, index: usize) -> Option<char> {
+        let l = self.get_line(line)?;
+        l.text.chars().nth(index)
+    }
 
+    pub fn pop_char(&mut self, line: usize) -> Option<char> {
+        let mut l = self.get_line_mut(line)?;
+
+        let c = l.text.pop();
+        l.len -= 1;
+        c
+    }
+
+    pub fn push_str(&mut self, mut line: usize, s: &str) {
+        let mut splits = s.split('\n');
+
+        match splits.next() {
+            Some(s) => {
+                let l = match self.get_line_mut(line) {
+                    Some(l) => l,
+                    None => return
+                };
+
+                l.len += s.chars().count();
+                l.text.push_str(s);
+            },
+            None => return
+        }
+
+        for s in splits {
+            line += 1;
+            self.insert_line(line, s);
+        }
+    }
+
+    pub fn insert_str(&mut self, mut line: usize, index: usize, s: &str) {
+        let l = match self.get_line_mut(line) {
+            Some(l) => l,
+            None => return
+        };
+
+        if l.len == index {
+            self.push_str(line, s);
+            return;
+        }
+
+        let byte_index = match l.text.char_indices().nth(index){
+            Some(b) => b,
+            None => return
+        }.0;
+        let (left, right) = l.text.split_at(byte_index);
+
+        let mut splits = s.split('\n');
+
+        match splits.next() {
+            Some(s) => {
+                l.clear();
+                l.text.push_str(left);
+                l.text.push_str(s);
+                l.len = left.chars().count() + s.chars().count();
+            },
+            None => return
+        }
+
+        for s in splits {
+            line += 1;
+            self.insert_line(line, s);
+        }
+
+        let l = match self.get_line_mut(line) {
+            Some(s) => s,
+            None => return
+        };
+        l.text.push_str(right);
+        l.len += right.chars().count();
+    }
+
+    pub fn get_str(&self, line: usize, start: usize, end: usize) -> Option<&str> {
+        let l = self.get_line(line)?;
+
+        let start = l.text.char_indices().nth(start)?.0;
+        let end = l.text.char_indices().nth(end)?.0;
+
+        l.text.get(start..=end)
+    }
+
+    pub fn remove_str(&self, line: usize, start: usize, end: usize) -> Option<String> {
+        let mut l = self.get_line_mut(line)?;
+
+        let chars = l.text.chars();
+        l.clear();
+        let mut counter = 0;
+        let range = start..=end;
+        let mut out = String::new();
+
+        for c in chars {
+            if range.contains(&counter) {
+                counter += 1;
+                out.push(c);
+                continue;
+            }
+            counter += 1;
+            l.text.push(c);
+            l.len += 1;
+        }
+        Some(out)
     }
 
     pub fn as_string(&self) -> String {
-        let mut out = String::new();
+        let mut s = String::new();
+        use std::fmt::Write;
+
         let mut is_first = true;
-        for line in self.text.iter() {
+        for line in self.text {
             if !is_first {
-                out.push('\n');
-            } else {
+                write!(s, "\n{}", line.text);
                 is_first = false;
+            } else {
+                write!(s, "{}", line.text);
             }
-            out.push_str(line.as_str());
         }
-        out
+    }
+
+    pub fn new() -> Self {
+        Self {
+            text: Vec::new()
+        }
+    }
+}
+
+impl From<&str> for Page {
+    fn from(value: &str) -> Self {
+
+        let splits = value.split('\n');
+
     }
 }
 
 impl Default for Page {
     fn default() -> Self {
         Self {
-            text: Default::default()
+            text: Vec::new()
         }
     }
 }
 
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Line {
-    len: usize,
-    text: String
-}
-
-impl Line {
-    pub fn new<I: Into<String>>(string: I) -> Self {
-        Self {
-            len: string.into().chars().count(),
-            text: String::new()
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.len = 0;
-        self.text = String::new();
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.text.as_str()
-    }
-
-
-    // returns false for a newline
-    pub fn push(&mut self, c: char) -> bool {
-        if c == '\r' || c == '\n' {
-            return false;
-        }
-        self.text.push(c);
-        self.len += 1;
-        true
-    }
-
-    pub fn push_str(&mut self, s: &str) -> Option<Chars> {
-        let chars = s.chars();
-        for c in chars {
-            if c == '\r' || c == '\n' {
-                return Some(chars);
-            }
-            self.push(c);
-        }
-        None
-    }
-
-    pub fn insert(&mut self, ch: char, index: usize) -> bool {
-        if index >= self.len {
-            return self.push(ch);
-        }
-        let chars = self.text.chars();
-        self.clear();
-        for ci in chars {
-            if self.len == index {
-                self.push(ch);
-            }
-            self.push(ci);
-        }
-        true
-    }
-
-    pub fn insert_str<C: Iterator<Item = char>>(&mut self, s: &str, index: usize) -> Option<C> {
-        if index >= self.len {
-            return self.push_str(s);
-        }
-        let chars = self.text.chars();
-        self.clear();
-        for ci in chars {
-            if self.len == index {
-                if let Some(chers) = self.push_str(s) {
-                    return Some(chers.chain(chars));
-                }
-            }
-            self.push(ci);
-        }
-    }
-
-    pub fn remove(&mut self, index: usize) -> Option<char> {
-        let chars = self.text.chars();
-        let mut out = None;
-        self.clear();
-        for c in chars {
-            if self.len == index {
-                out = Some(c);
-                continue;
-            }
-            self.push(c);
-        }
-        out
-    }
-
-    pub fn get_char(&self, index: usize) -> Option<char> {
-        self.text.chars().nth(index)
-    }
-
-    pub fn get_slice(&self, range: Range<usize>) -> Option<&str> {
-        self.text.get(range)
-    }
-
-    pub fn get_slice_mut(&mut self, range: Range<usize>) -> Option<&mut str> {
-        self.text.get_mut(range)
-    }
-
-    pub fn pop(&mut self) -> Option<char> {
-        self.text.pop()
-    }
-}
-
-impl Default for Line {
-    fn default() -> Self {
-        Self {
-            len: 0,
-            text: String::new()
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn get_char_mut() {
-        let mut page = Page {
-            text: vec![Line::new(String::from("Ayyyy Lmao"))]
-        };
-
-        let c = page.get_char_mut((0,0)).unwrap();
-        assert_eq!(c, "A");
-    }
-}
