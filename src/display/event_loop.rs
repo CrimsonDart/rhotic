@@ -112,6 +112,7 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                         window.request_redraw();
                     },
                     KeyboardInput { device_id: _, event, is_synthetic: _ } => {
+                        println!("{:?}", event.physical_key);
                         if event.state == ElementState::Pressed {
                             if let Some(s) = event.logical_key.to_text() {
                                 state.input.text.push_str(s);
@@ -124,7 +125,6 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                                         }
                                     }
                                 } else {
-                                    println!("{:?}", event.physical_key);
                                     state.input.keys.push((event.physical_key, ButtonState::Pressed));
                                 }
                             }
