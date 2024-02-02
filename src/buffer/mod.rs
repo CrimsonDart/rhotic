@@ -33,9 +33,9 @@ impl Buffer {
                             self.page.remove_char(self.cursor.1, self.cursor.0);
                         } else if self.cursor.1 != 0 {
                             let line = self.page.remove_line(self.cursor.1);
-                            self.cursor.0 = self.page.get_line(self.cursor.1).unwrap_or("").chars().count() + 1;
                             self.cursor.1 -= 1;
-                            self.page.push_str(self.cursor.1 - 1, line.as_str());
+                            self.cursor.0 = self.page.get_line(self.cursor.1).unwrap_or("").chars().count();
+                            self.page.push_str(self.cursor.1, line.as_str());
                         }
                     },
                     '\u{1b}' => {
@@ -45,7 +45,6 @@ impl Buffer {
                         self.page.insert_line(self.cursor.1 + 1, "");
                         self.cursor.0 = 0;
                         self.cursor.1 += 1;
-
                     },
                     _  => {
                         let res = self.page.insert_char(self.cursor.1, self.cursor.0, c);
@@ -63,6 +62,9 @@ impl Buffer {
     }
 
     pub fn press_key(&mut self, key: PhysicalKey) {
+
+        println!("{:?}", key);
+
         if let PhysicalKey::Code(k) = key {
             use winit::keyboard::KeyCode::*;
             match k {

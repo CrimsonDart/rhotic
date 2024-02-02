@@ -207,24 +207,19 @@ impl Page {
 
     pub fn as_string(&self) -> String {
         let mut s = String::new();
-        use std::fmt::Write;
 
-        let mut is_first = true;
-        for line in self.text.iter() {
-            if !is_first {
-                write!(s, "\n{}", line);
-                is_first = false;
-            } else {
-                write!(s, "{}", line);
-            }
-        }
-        s
-    }
+        let mut line_iter = self.text.iter();
 
-    pub fn new() -> Self {
-        Self {
-            text: Vec::new()
+        if let Some(line) = line_iter.next() {
+            s.push_str(line);
         }
+
+        for line in line_iter {
+            s.push('\n');
+            s.push_str(line);
+        }
+
+        s.replace('\t', "    ")
     }
 }
 

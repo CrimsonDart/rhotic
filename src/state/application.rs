@@ -33,10 +33,9 @@ impl State {
 
     pub fn advance(&mut self) {
 
+        // println!("{:?}", self.input);
 
         if !self.input.text.is_empty() {
-            println!("{}", self.input.text);
-            println!("{:?}", self.buffer.cursor);
             self.buffer.text_in(self.input.text.as_str());
         }
 

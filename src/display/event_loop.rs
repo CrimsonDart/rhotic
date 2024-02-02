@@ -124,6 +124,7 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                                         }
                                     }
                                 } else {
+                                    println!("{:?}", event.physical_key);
                                     state.input.keys.push((event.physical_key, ButtonState::Pressed));
                                 }
                             }
