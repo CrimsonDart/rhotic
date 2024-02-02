@@ -1,3 +1,5 @@
+use std::{error::Error, fmt::Display};
+
 
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,7 +28,7 @@ impl Page {
     }
 
     pub fn remove_line(&mut self, line: usize) -> String {
-        self.remove_line(line)
+        self.text.remove(line)
     }
 
     pub fn get_line(&self, line: usize) -> Option<&str> {
@@ -37,47 +39,42 @@ impl Page {
         self.text.pop()
     }
 
-    pub fn insert_char(&mut self, line: usize, index: usize, c: char) {
+    pub fn insert_char(&mut self, line: usize, index: usize, c: char) -> Result<(), InsertCharError> {
 
-        let mut mut_line = match self.text.get_mut(line) {
+        let mut_line = match self.text.get_mut(line) {
             Some(l) => l,
-            None => return
+            None => {
+                return Err(InsertCharError::LineLookupOutOfBounds { index: line, length: self.text.len() })
+            }
         };
 
         if index == mut_line.chars().count() {
             self.push_char(line, c);
-            return;
+            return Ok(());
         }
 
         if c == '\n' {
+            let byte_index = match mut_line.char_indices().nth(index) {
+                Some(b) => b,
+                None => return Err(
+                    InsertCharError::CharIndexingOutOfBounds { index, length: mut_line.chars().count() }
+                )
+            }.0;
 
+            let temp = mut_line.clone();
 
-
-
-
-            let chars = mut_line.chars();
+            let (left, right) = temp.split_at(byte_index);
             mut_line.clear();
+            mut_line.push_str(left);
+            self.insert_line(line + 1, right);
 
-            for character in chars {
-                if index == mut_line.len {
-                    break;
-                }
-                mut_line.text.push(character);
-                mut_line.len += 1;
-            }
-
-            let mut s = Line::default();
-            for character in chars {
-                s.text.push(character);
-                s.len += 1;
-            }
-            self.text.insert(line + 1, s);
-            return;
+            return Ok(());
         }
 
         for (byte_index, _) in mut_line.char_indices().nth(index) {
             mut_line.insert(byte_index, c);
         }
+        Ok(())
     }
 
     pub fn push_char(&mut self, line: usize, c: char) {
@@ -86,35 +83,32 @@ impl Page {
             return;
         }
 
-        let mut l = match self.get_line_mut(line) {
+        match self.text.get_mut(line) {
             Some(l) => l,
             None => return
-        };
-        l.text.push(c);
-        l.len += 1;
+        }
+        .push(c);
     }
 
     pub fn remove_char(&mut self, line: usize, index: usize) -> Option<char> {
 
-        let mut l = self.get_line_mut(line)?;
-        let byte_index = l.text.char_indices().nth(index)?.0;
+        let l = self.text.get_mut(line)?;
+        let byte_index = l.char_indices().nth(index)?.0;
 
-        let rem = l.text.remove(byte_index);
-        l.len -= 1;
+        let rem = l.remove(byte_index);
 
         Some(rem)
     }
 
     pub fn get_char(&self, line: usize, index: usize) -> Option<char> {
         let l = self.get_line(line)?;
-        l.text.chars().nth(index)
+        l.chars().nth(index)
     }
 
     pub fn pop_char(&mut self, line: usize) -> Option<char> {
-        let mut l = self.get_line_mut(line)?;
+        let mut l = self.text.get_mut(line)?;
 
-        let c = l.text.pop();
-        l.len -= 1;
+        let c = l.pop();
         c
     }
 
@@ -123,13 +117,12 @@ impl Page {
 
         match splits.next() {
             Some(s) => {
-                let l = match self.get_line_mut(line) {
+                let l = match self.text.get_mut(line) {
                     Some(l) => l,
                     None => return
                 };
 
-                l.len += s.chars().count();
-                l.text.push_str(s);
+                l.push_str(s);
             },
             None => return
         }
@@ -141,30 +134,30 @@ impl Page {
     }
 
     pub fn insert_str(&mut self, mut line: usize, index: usize, s: &str) {
-        let l = match self.get_line_mut(line) {
+        let l = match self.text.get_mut(line) {
             Some(l) => l,
             None => return
         };
 
-        if l.len == index {
+        if l.chars().count() == index {
             self.push_str(line, s);
             return;
         }
 
-        let byte_index = match l.text.char_indices().nth(index){
+        let byte_index = match l.char_indices().nth(index){
             Some(b) => b,
             None => return
         }.0;
-        let (left, right) = l.text.split_at(byte_index);
+        let temp = l.clone();
+        let (left, right) = temp.split_at(byte_index);
 
         let mut splits = s.split('\n');
 
         match splits.next() {
             Some(s) => {
                 l.clear();
-                l.text.push_str(left);
-                l.text.push_str(s);
-                l.len = left.chars().count() + s.chars().count();
+                l.push_str(left);
+                l.push_str(s);
             },
             None => return
         }
@@ -174,27 +167,27 @@ impl Page {
             self.insert_line(line, s);
         }
 
-        let l = match self.get_line_mut(line) {
+        let l = match self.text.get_mut(line) {
             Some(s) => s,
             None => return
         };
-        l.text.push_str(right);
-        l.len += right.chars().count();
+        l.push_str(right);
     }
 
     pub fn get_str(&self, line: usize, start: usize, end: usize) -> Option<&str> {
         let l = self.get_line(line)?;
 
-        let start = l.text.char_indices().nth(start)?.0;
-        let end = l.text.char_indices().nth(end)?.0;
+        let start = l.char_indices().nth(start)?.0;
+        let end = l.char_indices().nth(end)?.0;
 
-        l.text.get(start..=end)
+        l.get(start..=end)
     }
 
-    pub fn remove_str(&self, line: usize, start: usize, end: usize) -> Option<String> {
-        let mut l = self.get_line_mut(line)?;
+    pub fn remove_str(&mut self, line: usize, start: usize, end: usize) -> Option<String> {
+        let l = self.text.get_mut(line)?;
 
-        let chars = l.text.chars();
+        let temp = l.clone();
+        let chars = temp.chars();
         l.clear();
         let mut counter = 0;
         let range = start..=end;
@@ -207,8 +200,7 @@ impl Page {
                 continue;
             }
             counter += 1;
-            l.text.push(c);
-            l.len += 1;
+            l.push(c);
         }
         Some(out)
     }
@@ -218,14 +210,15 @@ impl Page {
         use std::fmt::Write;
 
         let mut is_first = true;
-        for line in self.text {
+        for line in self.text.iter() {
             if !is_first {
-                write!(s, "\n{}", line.text);
+                write!(s, "\n{}", line);
                 is_first = false;
             } else {
-                write!(s, "{}", line.text);
+                write!(s, "{}", line);
             }
         }
+        s
     }
 
     pub fn new() -> Self {
@@ -238,16 +231,48 @@ impl Page {
 impl From<&str> for Page {
     fn from(value: &str) -> Self {
 
-        let splits = value.split('\n');
+        let text = value.split('\n')
+            .map(|x| {
+            String::from(x)
+        }).collect();
 
+        Self {
+            text
+        }
     }
 }
 
 impl Default for Page {
     fn default() -> Self {
         Self {
-            text: Vec::new()
+            text: vec![String::new()]
         }
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum InsertCharError {
+    LineLookupOutOfBounds {
+        index: usize,
+        length: usize
+    },
+    CharIndexingOutOfBounds {
+        index: usize,
+        length: usize
+    }
+}
+
+impl Error for InsertCharError {}
+
+impl Display for InsertCharError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InsertCharError::LineLookupOutOfBounds { index, length } => {
+                write!(f, "Line Lookup Error:\nIndex is {index}, while len is {length}")
+            },
+            InsertCharError::CharIndexingOutOfBounds { index, length } => {
+                write!(f, "Char Index Error:\nIndex is {index}, while len is {length}")
+            }
+        }
+    }
+}

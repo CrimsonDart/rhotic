@@ -30,25 +30,31 @@ impl Buffer {
                     '\u{8}' => {
                         if self.cursor.0 != 0 {
                             self.cursor.0 -= 1;
-                            self.page.remove_char(self.cursor);
+                            self.page.remove_char(self.cursor.1, self.cursor.0);
                         } else if self.cursor.1 != 0 {
-                            let rem = self.page.text.remove(self.cursor.1).1;
+                            let line = self.page.remove_line(self.cursor.1);
+                            self.cursor.0 = self.page.get_line(self.cursor.1).unwrap_or("").chars().count() + 1;
                             self.cursor.1 -= 1;
-                            let local_past_str = &mut self.page.text[self.cursor.1];
-                            self.cursor.0 = local_past_str.0;
-                            local_past_str.1.push_str(rem.as_str());
+                            self.page.push_str(self.cursor.1 - 1, line.as_str());
                         }
                     },
                     '\u{1b}' => {
                         self.mode = Mode::Command;
                     },
-                    '\r' => {
-                        self.page.insert_new_line((0, self.cursor.1));
-                        self.cursor.1 += 1;
+                    '\r' | '\n' => {
+                        self.page.insert_line(self.cursor.1 + 1, "");
                         self.cursor.0 = 0;
-                    }
+                        self.cursor.1 += 1;
+
+                    },
                     _  => {
-                        self.page.insert_char_at(self.cursor, c);
+                        let res = self.page.insert_char(self.cursor.1, self.cursor.0, c);
+                        match res {
+                            Ok(_) => {},
+                            Err(e) => {
+                                println!("{e}");
+                            }
+                        }
                         self.cursor.0 += 1;
                     }
                 }
@@ -66,7 +72,7 @@ impl Buffer {
                     }
                 },
                 ArrowRight => {
-                    if self.cursor.0 != self.page.text[self.cursor.1].0 {
+                    if self.cursor.0 != self.page.get_line(self.cursor.1).unwrap_or("").chars().count() + 1 {
                         self.cursor.0 += 1;
                     }
                 },
@@ -100,7 +106,7 @@ impl Buffer {
                     }
                 },
                 ArrowRight => {
-                    if self.cursor.0 != self.page.text[self.cursor.1].0 {
+                    if self.cursor.0 != self.page.get_line(self.cursor.1).unwrap_or("").chars().count() + 1 {
                         self.cursor.0 += 1;
                     }
                 },
@@ -118,7 +124,7 @@ impl Buffer {
     }
 
     pub fn move_cursor_right(&mut self) -> bool {
-        let line_len = self.page.text[self.cursor.1].0;
+        let line_len = self.page.get_line(self.cursor.1).unwrap_or("").chars().count();
         if self.cursor.0 + 1 != line_len {
             self.cursor.0 += 1;
             return true;
