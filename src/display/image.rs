@@ -1,5 +1,7 @@
 
 
+use core::slice::SlicePattern;
+use std::borrow::Borrow;
 use std::fs::File;
 use zerocopy::AsBytes;
 
@@ -80,31 +82,58 @@ impl ImageHandle {
         }
     }
 
-
-    pub fn to_rect(self, offset: Point<u32>) -> Result<DisplayImage, &'static str> {
-        use ImageHandle::*;
-
+    pub fn get_image(&self) -> Option<Image> {
         match self {
-            Handle => {
-                Err("Tried to convert image without Loading first!")
-            },
-            Image {
-                vector,
-                size
-            }
-                => {
-                Ok(DisplayImage {
-                    vector,
-                    size,
-                    offset
+            ImageHandle::Image { vector, size } => {
+                Some(Image {
+                    bytes: vector.clone(),
+                    size: size.clone()
                 })
-            }
+            },
+            ImageHandle::Handle { path: _ } => None
+
+        }
+    }
+
+    pub fn image_ref(&self) -> Option<ImageRef> {
+        match self {
+            ImageHandle::Image { vector, size } => {
+                Some(
+                    ImageRef { bytes: vector.as_slice(), size: size.clone() }
+                )
+            },
+            ImageHandle::Handle { path: _ } => None
         }
     }
 }
 
-pub struct DisplayImage {
-    pub vector: Vec<Rgba>,
-    pub offset: Point<u32>,
+pub trait ColorRect<C: Into<u32>> {
+    fn get_bytes(&self) -> &[C];
+    fn get_width(&self) -> u32;
+    fn get_height(&self) -> u32;
+}
+
+pub struct Image {
+    pub bytes: Vec<Rgba>,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl ColorRect<Rgba> for Image {
+    fn get_bytes(&self) -> &[Rgba] {
+        self.bytes.as_slice()
+    }
+
+    fn get_width(&self) -> u32 {
+        self.width
+    }
+
+    fn get_height(&self) -> u32 {
+        self.height
+    }
+}
+
+pub struct ImageRef<'a> {
+    pub bytes: &'a [Rgba],
     pub size: Point<u32>
 }

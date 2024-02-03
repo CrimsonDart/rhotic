@@ -6,7 +6,9 @@ mod text_buffer;
 
 pub struct Buffer {
     pub page: Page,
-    pub cursor: (usize, usize),
+    pub line: usize,
+    pub cindex: usize,
+    pub cindex_mem: usize,
     pub mode: Mode,
 }
 
@@ -25,36 +27,42 @@ impl Buffer {
         if self.mode == Mode::Insert {
 
             for c in text.chars() {
-                println!("{c:?}");
                 match c {
                     '\u{8}' => {
-                        if self.cursor.0 != 0 {
-                            self.cursor.0 -= 1;
-                            self.page.remove_char(self.cursor.1, self.cursor.0);
-                        } else if self.cursor.1 != 0 {
-                            let line = self.page.remove_line(self.cursor.1);
-                            self.cursor.1 -= 1;
-                            self.cursor.0 = self.page.get_line(self.cursor.1).unwrap_or("").chars().count();
-                            self.page.push_str(self.cursor.1, line.as_str());
+                        if self.cindex != 0 {
+                            self.cindex -= 1;
+                            self.page.remove_char(self.line, self.cindex);
+
+                        } else if self.line != 0 {
+                            let line = self.page.remove_line(self.line);
+                            self.cindex -= 1;
+                            self.cindex = self.page.get_line(self.line).unwrap_or("").chars().count();
+                            self.page.push_str(self.line, line.as_str());
                         }
                     },
                     '\u{1b}' => {
                         self.mode = Mode::Command;
                     },
                     '\r' | '\n' => {
-                        self.page.insert_line(self.cursor.1 + 1, "");
-                        self.cursor.0 = 0;
-                        self.cursor.1 += 1;
+                        match self.page.insert_char(self.line, self.cindex, '\n') {
+                            Ok(_) => {},
+                            Err(e) => {
+                                println!("{e}");
+                                return;
+                            }
+                        }
+                        self.line += 1;
+                        self.cindex = 0;
                     },
                     _  => {
-                        let res = self.page.insert_char(self.cursor.1, self.cursor.0, c);
+                        let res = self.page.insert_char(self.line, self.cindex, c);
                         match res {
                             Ok(_) => {},
                             Err(e) => {
                                 println!("{e}");
                             }
                         }
-                        self.cursor.0 += 1;
+                        self.cindex += 1;
                     }
                 }
             }
@@ -62,20 +70,17 @@ impl Buffer {
     }
 
     pub fn press_key(&mut self, key: PhysicalKey) {
-
-        println!("{:?}", key);
-
         if let PhysicalKey::Code(k) = key {
             use winit::keyboard::KeyCode::*;
             match k {
                 ArrowLeft => {
-                    if self.cursor.0 != 0 {
-                        self.cursor.0 -= 1;
+                    if self.cindex != 0 {
+                        self.cindex -= 1;
                     }
                 },
                 ArrowRight => {
-                    if self.cursor.0 != self.page.get_line(self.cursor.1).unwrap_or("").chars().count() + 1 {
-                        self.cursor.0 += 1;
+                    if self.cindex != self.page.get_line(self.line).unwrap_or("").chars().count() + 1 {
+                        self.cindex += 1;
                     }
                 },
                 _ => {}
@@ -103,13 +108,13 @@ impl Buffer {
             use winit::keyboard::KeyCode::*;
             match k {
                 ArrowLeft => {
-                    if self.cursor.0 != 0 {
-                        self.cursor.0 -= 1;
+                    if self.cindex != 0 {
+                        self.cindex -= 1;
                     }
                 },
                 ArrowRight => {
-                    if self.cursor.0 != self.page.get_line(self.cursor.1).unwrap_or("").chars().count() + 1 {
-                        self.cursor.0 += 1;
+                    if self.cindex != self.page.get_line(self.line).unwrap_or("").chars().count() + 1 {
+                        self.cindex += 1;
                     }
                 },
                 _ => {}
@@ -118,17 +123,17 @@ impl Buffer {
     }
 
     pub fn move_cursor_left(&mut self) -> bool {
-        if self.cursor.0 != 0 {
-            self.cursor.0 -= 1;
+        if self.cindex != 0 {
+            self.cindex -= 1;
             return true;
         }
         false
     }
 
     pub fn move_cursor_right(&mut self) -> bool {
-        let line_len = self.page.get_line(self.cursor.1).unwrap_or("").chars().count();
-        if self.cursor.0 + 1 != line_len {
-            self.cursor.0 += 1;
+        let line_len = self.page.get_line(self.line).unwrap_or("").chars().count();
+        if self.cindex + 1 != line_len {
+            self.cindex += 1;
             return true;
         }
         false
@@ -139,7 +144,9 @@ impl Default for Buffer {
     fn default() -> Self {
         Self {
             page: Default::default(),
-            cursor: (0,0),
+            cindex: 0,
+            line: 0,
+            cindex_mem: 0,
             mode: Mode::Command,
         }
     }

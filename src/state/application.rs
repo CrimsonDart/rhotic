@@ -41,7 +41,6 @@ impl State {
 
         for (k, v) in self.input.keys.iter() {
             if *v == ButtonState::Pressed {
-                println!("{:?}", self.buffer.cursor);
                 self.buffer.press_key(k.clone());
             } else if let ButtonState::Echo(t) = *v {
                 self.buffer.echo_key(k.clone());

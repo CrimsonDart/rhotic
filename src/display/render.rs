@@ -20,7 +20,6 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
 
     buffer.fill(Rgba::new(32, 32, 32, 255).into());
 
-    let cursor = state.buffer.cursor;
     let size = state.glyph_scale;
 
 
@@ -72,7 +71,6 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
             let win_width = window_size.x as isize;
 
             let bufdex = (y_pos * win_width + x_pos) as usize;
-
 
             if bufdex <= buffer.len() && x_pos < win_width {
                 buffer[bufdex] = color.into();

@@ -112,29 +112,30 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                         window.request_redraw();
                     },
                     KeyboardInput { device_id: _, event, is_synthetic: _ } => {
-                        println!("{:?}", event.physical_key);
                         if event.state == ElementState::Pressed {
                             if let Some(s) = event.logical_key.to_text() {
                                 state.input.text.push_str(s);
-                                if event.repeat {
-                                    for (k, v) in state.input.keys.iter_mut() {
-                                        if *k == event.physical_key {
-                                            if let ButtonState::Held(t) = *v {
-                                                *v = ButtonState::Echo(t);
-                                            }
+                            }
+                            if event.repeat {
+                                for (k, v) in state.input.keys.iter_mut() {
+                                    if *k == event.physical_key {
+                                        if let ButtonState::Held(t) = *v {
+                                            *v = ButtonState::Echo(t);
                                         }
                                     }
-                                } else {
-                                    state.input.keys.push((event.physical_key, ButtonState::Pressed));
                                 }
+                                return;
                             }
-                        } else {
-                            for (k,v) in state.input.keys.iter_mut() {
-                                if *k == event.physical_key {
-                                    *v = ButtonState::Released;
-                                }
-                            }
+                            state.input.keys.push((event.physical_key, ButtonState::Pressed));
+                            return;
                         }
+                        state.input.keys.iter_mut().filter(|(k,_)| {
+                            *k == event.physical_key
+
+                        }).for_each(|(_,v)| {
+                            *v = ButtonState::Released
+
+                        });
                     },
                     _ => {}
                 }
