@@ -1,7 +1,7 @@
 use softbuffer::Buffer;
 use winit::window::Window;
 
-use super::image::Image;
+use super::image::{Image, ColorRect};
 
 
 pub struct Canvas<'a> {
@@ -19,9 +19,24 @@ impl<'a> Canvas<'a> {
         true
     }
 
-    pub fn draw_image<C: Into<u32>>(&mut self, x: usize, y: usize, image: &Image) -> bool {
+    pub fn draw_image<R: ColorRect<u32>>(&mut self, x: isize, y: isize, image: &R) {
+        let bytes = image.get_bytes();
 
-        true
+        let mut gx = x;
+        let mut gy = y;
+
+        for counter in 0..image.get_bytes().len() {
+
+            if gx < self.width && gy < self.height {
+                self.buffer[gy * self.width + gx] = bytes[counter];
+            }
+
+            if gx == image.get_width() + x {
+                gx = x;
+                gy += 1;
+            } else {
+                gx += 1;
+            }
+        }
     }
-
 }

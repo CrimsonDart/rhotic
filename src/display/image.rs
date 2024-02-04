@@ -1,7 +1,5 @@
 
 
-use core::slice::SlicePattern;
-use std::borrow::Borrow;
 use std::fs::File;
 use zerocopy::AsBytes;
 
@@ -49,7 +47,8 @@ fn load_png(path: &str) -> Result<ImageHandle, ImageError> {
 
     Ok(ImageHandle::Image {
         vector: out_buf,
-        size: Point::new(width, height)
+        width: width as usize,
+        height: height as usize
     })
 }
 
@@ -60,7 +59,8 @@ pub enum ImageHandle {
     },
     Image {
         vector: Vec<Rgba>,
-        size: Point<u32>
+        width: usize,
+        height: usize
     }
 }
 
@@ -82,12 +82,13 @@ impl ImageHandle {
         }
     }
 
-    pub fn get_image(&self) -> Option<Image> {
+    pub fn to_image(self) -> Option<Image> {
         match self {
-            ImageHandle::Image { vector, size } => {
+            ImageHandle::Image { vector, width, height } => {
                 Some(Image {
                     bytes: vector.clone(),
-                    size: size.clone()
+                    width,
+                    height
                 })
             },
             ImageHandle::Handle { path: _ } => None
@@ -97,9 +98,9 @@ impl ImageHandle {
 
     pub fn image_ref(&self) -> Option<ImageRef> {
         match self {
-            ImageHandle::Image { vector, size } => {
+            ImageHandle::Image { vector, width, height } => {
                 Some(
-                    ImageRef { bytes: vector.as_slice(), size: size.clone() }
+                    ImageRef { bytes: vector.as_slice(), width: *width, height: *height }
                 )
             },
             ImageHandle::Handle { path: _ } => None
@@ -109,14 +110,20 @@ impl ImageHandle {
 
 pub trait ColorRect<C: Into<u32>> {
     fn get_bytes(&self) -> &[C];
-    fn get_width(&self) -> u32;
-    fn get_height(&self) -> u32;
+    fn get_width(&self) -> usize;
+    fn get_height(&self) -> usize;
 }
 
 pub struct Image {
     pub bytes: Vec<Rgba>,
-    pub width: u32,
-    pub height: u32,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl Image {
+    pub fn get_ref(&self) -> ImageRef {
+        ImageRef { bytes: self.bytes.as_slice(), width: self.width, height: self.height }
+    }
 }
 
 impl ColorRect<Rgba> for Image {
@@ -124,16 +131,17 @@ impl ColorRect<Rgba> for Image {
         self.bytes.as_slice()
     }
 
-    fn get_width(&self) -> u32 {
+    fn get_width(&self) -> usize {
         self.width
     }
 
-    fn get_height(&self) -> u32 {
+    fn get_height(&self) -> usize {
         self.height
     }
 }
 
 pub struct ImageRef<'a> {
-    pub bytes: &'a [Rgba],
-    pub size: Point<u32>
+    bytes: &'a [Rgba],
+    width: usize,
+    height: usize
 }
