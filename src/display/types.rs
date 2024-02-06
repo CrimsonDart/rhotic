@@ -1,69 +1,87 @@
 use std::fmt::{Formatter, Display};
-use std::ops::Add;
+use std::ops::{Add, Index, IndexMut};
 
 pub type Pixel = Point<u32>;
 
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Color {
+    Red = 0,
+    Green = 1,
+    Blue = 2,
+    Alpha = 3
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Rgba {
-    value: u32
+    value: [u8; 4]
 }
 
 impl Rgba {
-    pub fn new(red: u32, green: u32, blue: u32, alpha: u32) -> Self {
+    pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
         Self {
-            value: blue | (green << 8) | (red << 16) | (alpha << 24)
+            value: [red, green, blue, alpha]
         }
     }
+}
 
-    pub fn red(&self) -> u32 {
-        (self.value & 0x00FF0000 ) >> 16
+impl Index<Color> for Rgba {
+    type Output = u8;
+    fn index(&self, index: Color) -> &Self::Output {
+        &self.value[index as usize]
     }
+}
 
-    pub fn green(&self) -> u32 {
-        (self.value & 0x0000FF00) >> 8
+impl IndexMut<Color> for Rgba {
+    fn index_mut(&mut self, index: Color) -> &mut Self::Output {
+        &mut self.value[index as usize]
     }
+}
 
-    pub fn blue(&self) -> u32 {
-        self.value & 0x000000FF
+impl Index<usize> for Rgba {
+    type Output = u8;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.value[index]
     }
+}
 
-    pub fn alpha(&self) -> u32 {
-        (self.value & 0xFF000000) >> 24
-    }
-
-    pub fn set_red(&mut self, red: u32) {
-        self.value = (self.value & 0xFF00FFFF) | (red << 16)
-    }
-
-    pub fn set_green(&mut self, green: u32) {
-        self.value = (self.value & 0xFFFF00FF) | (green << 8)
-    }
-
-    pub fn set_blue(&mut self, blue: u32) {
-        self.value = (self.value & 0xFFFFFF00) | blue
-    }
-
-    pub fn set_alpha(&mut self, alpha: u32) {
-        self.value = (self.value & 0x00FFFFFF) | (alpha << 24)
+impl IndexMut<usize> for Rgba {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.value[index]
     }
 }
 
 impl Display for Rgba {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "[")?;
+        let mut is_first = true;
+        for b in self.value {
+            if is_first {
+                is_first = false;
+                write!(f, "{b}")?;
+            } else {
+                write!(f, ", {b}")?;
+            }
+        }
+        Ok(())
     }
 }
 
 impl From<Rgba> for u32 {
     fn from(value: Rgba) -> Self {
-        value.value
+        let r = &value as *const Rgba;
+        let r: *const u32 = r.cast();
+        *unsafe {
+            r.as_ref().unwrap()
+        }
     }
 }
 
 impl From<u32> for Rgba {
     fn from(value: u32) -> Self {
-        Self {
-            value
+        let r = &value as *const u32;
+        let r: *const Rgba = r.cast();
+        *unsafe {
+            r.as_ref().unwrap()
         }
     }
 }
@@ -233,26 +251,14 @@ impl Iterator for RectIter {
 mod test {
     use super::Rgba;
 
-    #[test]
-    fn test_red() {
-
-        let mut color = Rgba::new(255, 0, 0, 0);
-
-        assert_eq!(color.red(), 255);
-
-        color.set_red(128);
-        assert_eq!(color.red(), 128);
-    }
 
     #[test]
-    fn test_green() {
+    fn test_array_cast() {
+        let color = Rgba::new(0, 1, 2, 3);
 
-        let mut color = Rgba::from(0x0000FF00);
+        let refer = color.value;
+        assert_eq!(refer, [0,1,2,3])
 
-        assert_eq!(color.green(), 255);
 
-        color.set_green(128);
-        color.set_red(32);
-        assert_eq!(color.green(), 128);
     }
 }

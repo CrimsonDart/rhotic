@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use fontdue::{Font, layout::GlyphRasterConfig, Metrics};
 use winit::keyboard::{PhysicalKey, KeyCode};
 
-use crate::{display::{event_loop::{Input, ButtonState}, font::load_ttf}, buffer::Buffer};
+use crate::{display::{event_loop::{Input, ButtonState}, font::load_ttf, image::{Image, MonoImage}}, buffer::Buffer};
 
 // A singeton that contains all data of the application.
 pub struct State {
@@ -11,7 +11,7 @@ pub struct State {
     pub is_focused: bool,
     pub is_colored: bool,
     pub font: Font,
-    pub char_cache: HashMap<GlyphRasterConfig, (Metrics, Vec<u8>)>,
+    pub char_cache: HashMap<GlyphRasterConfig, MonoImage>,
     pub glyph_scale: f32,
     pub buffer: Buffer
 }

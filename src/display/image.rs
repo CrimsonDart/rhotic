@@ -8,6 +8,7 @@ use image::codecs::png::PngDecoder;
 use image::{self, ImageDecoder, ImageError};
 
 
+
 use super::{Rgba, Point};
 
 
@@ -26,21 +27,7 @@ fn load_png(path: &str) -> Result<ImageHandle, ImageError> {
 
         let mut color = Rgba::default();
         for index in 0..=3 {
-            match index {
-                0 => {
-                    color.set_red(buf[pixel * 4] as u32);
-                },
-                1 => {
-                    color.set_green(buf[(pixel * 4) + 1] as u32);
-                },
-                2 => {
-                    color.set_blue(buf[(pixel * 4) + 2] as u32);
-                },
-                3 => {
-                    color.set_alpha(buf[(pixel * 4) + 3] as u32);
-                },
-                _ => {}
-            }
+            color[index] = buf[pixel * 4 + index];
         }
         out_buf.push(color);
     }
@@ -108,7 +95,7 @@ impl ImageHandle {
     }
 }
 
-pub trait ColorRect<C: Into<u32>> {
+pub trait ColorRect<C: Into<R>, R = u32> {
     fn get_bytes(&self) -> &[C];
     fn get_width(&self) -> usize;
     fn get_height(&self) -> usize;
@@ -119,6 +106,7 @@ pub struct Image {
     pub width: usize,
     pub height: usize,
 }
+
 
 impl Image {
     pub fn get_ref(&self) -> ImageRef {
@@ -137,6 +125,26 @@ impl ColorRect<Rgba> for Image {
 
     fn get_height(&self) -> usize {
         self.height
+    }
+}
+
+pub struct MonoImage {
+    pub bytes: Vec<u8>,
+    pub width: usize,
+    pub height: usize
+}
+
+impl ColorRect<u8, u8> for MonoImage {
+    fn get_bytes(&self) -> &[u8] {
+        self.bytes.as_slice()
+    }
+
+    fn get_height(&self) -> usize {
+        self.height
+    }
+
+    fn get_width(&self) -> usize {
+        self.width
     }
 }
 

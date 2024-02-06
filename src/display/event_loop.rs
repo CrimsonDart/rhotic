@@ -1,7 +1,7 @@
 use std::{num::NonZeroU32, fmt::{Display, Debug}, time::Instant};
-use softbuffer::{Context, Surface};
+use softbuffer::{Context, Surface, Buffer};
 use winit::{
-    window::WindowBuilder,
+    window::{WindowBuilder, Window},
     event_loop::EventLoop, event::{MouseScrollDelta, ElementState}, dpi::PhysicalSize, keyboard::PhysicalKey};
 
 use crate::state::application::State;
@@ -57,8 +57,10 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                             NonZeroU32::new(size.y).unwrap()
                         ).unwrap();
 
-                        let buffer = surface.buffer_mut().unwrap();
-                        render(buffer, size, &mut state);
+                        let mut buffer = surface.buffer_mut().unwrap();
+                        render(&mut buffer, size, &mut state);
+                        buffer.present().unwrap();
+
                     },
                     Resized(_) => {
                         window.request_redraw();
