@@ -58,9 +58,7 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                         ).unwrap();
 
                         let mut buffer = surface.buffer_mut().unwrap();
-                        render(&mut buffer, size, &mut state);
-                        buffer.present().unwrap();
-
+                        render(buffer, size, &mut state);
                     },
                     Resized(_) => {
                         window.request_redraw();

@@ -8,8 +8,6 @@ use winit::window::Window;
 
 use crate::state::application::State;
 
-type Buffa<'a> = Buffer<'a, &'a Window, &'a Window>;
-
 use super::{types::Pixel, Rgba, image::{Image, MonoImage, ColorRect}};
 
 
@@ -18,7 +16,7 @@ use super::{types::Pixel, Rgba, image::{Image, MonoImage, ColorRect}};
 //
 //
 //
-pub fn render<'a>(buffer: &'a mut Buffa, window_size: Pixel, state: &mut State) {
+pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &mut State) {
 
     buffer.fill(Rgba::new(32, 32, 32, 255).into());
 
@@ -70,8 +68,9 @@ pub fn render<'a>(buffer: &'a mut Buffa, window_size: Pixel, state: &mut State) 
 
         //println!("{} | {}", image.len(), metrics.width * metrics.height);
 
-        draw_monochrome_image::<MonoImage, u8>(buffer, window_size.x as usize, window_size.y as usize, glyph.x as isize, glyph.y as isize, image, Rgba::new(0,0,0,255), Rgba::new(255,255,255,255));
+        draw_monochrome_image::<MonoImage, u8>(&mut buffer, window_size.x as usize, window_size.y as usize, glyph.x as isize, glyph.y as isize, image, Rgba::new(0,0,0,255), Rgba::new(255,255,255,255));
     }
+    buffer.present().unwrap();
 }
 
 fn draw_horizontal_line(height: usize, buffer: &mut Buffer<&Window, &Window>, window_size: &Pixel, color: Rgba) {
@@ -86,7 +85,7 @@ fn draw_horizontal_line(height: usize, buffer: &mut Buffer<&Window, &Window>, wi
 }
 
 
-pub fn draw_image<'a, R: ColorRect<Rgba>>(mut buffer: Buffa<'a>, win_width: usize, win_height: usize, x: isize, y: isize, image: &R) -> Buffa<'a> {
+pub fn draw_image<'a, R: ColorRect<Rgba>>(mut buffer: Buffer<&Window, &Window>, win_width: usize, win_height: usize, x: isize, y: isize, image: &R) {
     let bytes = image.get_bytes();
 
     let mut gx = x;
@@ -109,10 +108,9 @@ pub fn draw_image<'a, R: ColorRect<Rgba>>(mut buffer: Buffa<'a>, win_width: usiz
             gx += 1;
         }
     }
-    buffer
 }
 
-pub fn draw_monochrome_image<'a, R: ColorRect<u8, u8>, C: Into<u32>>(buffer: &'a mut Buffa, win_width: usize, win_height: usize, x: isize, y: isize, image: &R, black: Rgba, white: Rgba) {
+pub fn draw_monochrome_image<'a, R: ColorRect<u8, u8>, C: Into<u32>>(buffer: &mut Buffer<&Window, &Window>, win_width: usize, win_height: usize, x: isize, y: isize, image: &R, black: Rgba, white: Rgba) {
     let bytes = image.get_bytes();
 
     let mut gx = x;
@@ -126,13 +124,9 @@ pub fn draw_monochrome_image<'a, R: ColorRect<u8, u8>, C: Into<u32>>(buffer: &'a
 
         if nx < win_width && ny < win_height {
 
-            let color = match bytes[counter] {
-                0 | 1 => black,
-                255 | 254 => white,
-                c => {
-
-                    Rgba::from(0)
-                }
+            let color = {
+                let mono = bytes[counter];
+                Rgba::new(mono, mono, mono, 255)
             };
 
             buffer[ny * win_width + nx] = color.into();
