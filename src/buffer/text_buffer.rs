@@ -9,6 +9,10 @@ pub struct Page {
 
 impl Page {
 
+    pub fn len(&self) -> usize {
+        self.text.len()
+    }
+
     pub fn insert_line(&mut self, mut line: usize, text: &str) {
         if line == self.text.len() {
             self.push_line(text);
@@ -212,11 +216,13 @@ impl Page {
 
         if let Some(line) = line_iter.next() {
             s.push_str(line);
+            s.push(' ');
         }
 
         for line in line_iter {
             s.push('\n');
             s.push_str(line);
+            s.push(' ');
         }
 
         s.replace('\t', "    ")

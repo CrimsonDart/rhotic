@@ -24,6 +24,7 @@ impl Buffer {
 
     pub fn text_in(&mut self, text: &str) {
 
+        self.validate_cursor();
         if self.mode == Mode::Insert {
 
             for c in text.chars() {
@@ -35,7 +36,7 @@ impl Buffer {
 
                         } else if self.line != 0 {
                             let line = self.page.remove_line(self.line);
-                            self.cindex -= 1;
+                            self.line -= 1;
                             self.cindex = self.page.get_line(self.line).unwrap_or("").chars().count();
                             self.page.push_str(self.line, line.as_str());
                         }
@@ -66,6 +67,18 @@ impl Buffer {
                     }
                 }
             }
+        }
+    }
+
+    // Forces the cursor in bounds of the text.
+    pub fn validate_cursor(&mut self) {
+        if self.page.len() <= self.line {
+            self.line = self.page.len() - 1;
+        }
+
+        let c = self.page.get_line(self.line).unwrap().chars().count();
+        if c < self.cindex {
+            self.cindex = c;
         }
     }
 

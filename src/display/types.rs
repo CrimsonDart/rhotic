@@ -1,5 +1,5 @@
 use std::fmt::{Formatter, Display};
-use std::ops::{Add, Index, IndexMut};
+use std::ops::{Add, Index, IndexMut, Sub, Mul, Div};
 
 pub type Pixel = Point<u32>;
 
@@ -11,16 +11,144 @@ pub enum Color {
     Alpha = 3
 }
 
+pub enum Rgbi {
+    Black,
+    DarkGray,
+    LightGray,
+    White,
+    DarkBlue,
+    Blue,
+    DarkGreen,
+    Green,
+    DarkCyan,
+    Cyan,
+    DarkRed,
+    Red,
+    DarkMagenta,
+    Magenta,
+    DarkYellow,
+    Yellow,
+}
+
+pub enum MCWool {
+    Black,
+    DarkGray,
+    Gray,
+    White,
+    Brown,
+    Red,
+    Orange,
+    Yellow,
+    Lime,
+    Green,
+    Cyan,
+    LightBlue,
+    Blue,
+    Purple,
+    Magenta,
+    Pink
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Rgba {
     value: [u8; 4]
 }
 
 impl Rgba {
-    pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
+
+    pub const BLACK: Rgba = Rgba::new(0, 0, 0, 255);
+    pub const WHITE: Rgba = Rgba::new_opaque(255, 255, 255);
+
+
+
+
+    pub const fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
         Self {
             value: [red, green, blue, alpha]
         }
+    }
+
+    pub const fn new_opaque(red: u8, green: u8, blue: u8) -> Self {
+        Self {
+            value: [red, green, blue, 255]
+        }
+    }
+}
+
+impl Add for Rgba {
+    type Output = Rgba;
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self[0] = self[0].checked_add(rhs[0]).unwrap_or(255);
+        self[1] = self[1].checked_add(rhs[1]).unwrap_or(255);
+        self[2] = self[2].checked_add(rhs[2]).unwrap_or(255);
+        self[3] = self[3].checked_add(rhs[3]).unwrap_or(255);
+
+        self
+    }
+}
+
+impl Add<u8> for Rgba {
+    type Output = Rgba;
+    fn add(mut self, rhs: u8) -> Self::Output {
+        self[0] = self[0].checked_add(rhs).unwrap_or(255);
+        self[1] = self[1].checked_add(rhs).unwrap_or(255);
+        self[2] = self[2].checked_add(rhs).unwrap_or(255);
+        self[3] = self[3].checked_add(rhs).unwrap_or(255);
+
+        self
+    }
+}
+
+impl Sub for Rgba {
+    type Output = Rgba;
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self[0] = self[0].checked_sub(rhs[0]).unwrap_or(0);
+        self[1] = self[1].checked_sub(rhs[1]).unwrap_or(0);
+        self[2] = self[2].checked_sub(rhs[2]).unwrap_or(0);
+        self[3] = self[3].checked_sub(rhs[3]).unwrap_or(0);
+
+        self
+    }
+}
+
+impl Sub<u8> for Rgba {
+    type Output = Rgba;
+    fn sub(mut self, rhs: u8) -> Self::Output {
+        self[0] = self[0].checked_sub(rhs).unwrap_or(0);
+        self[1] = self[1].checked_sub(rhs).unwrap_or(0);
+        self[2] = self[2].checked_sub(rhs).unwrap_or(0);
+        self[3] = self[3].checked_sub(rhs).unwrap_or(0);
+
+        self
+    }
+}
+
+impl Mul<u8> for Rgba {
+    type Output = Rgba;
+    fn mul(mut self, rhs: u8) -> Self::Output {
+        self[0] = self[0].checked_mul(rhs).unwrap_or(255);
+        self[1] = self[1].checked_mul(rhs).unwrap_or(255);
+        self[2] = self[2].checked_mul(rhs).unwrap_or(255);
+        self[3] = self[3].checked_mul(rhs).unwrap_or(255);
+
+        self
+    }
+}
+
+impl Div<u8> for Rgba {
+    type Output = Rgba;
+    fn div(mut self, rhs: u8) -> Self::Output {
+
+        if rhs == 0 {
+            panic!("Tried to divide by Zero.");
+        }
+
+        self[0] /= rhs;
+        self[1] /= rhs;
+        self[2] /= rhs;
+        self[3] /= rhs;
+
+        self
     }
 }
 
