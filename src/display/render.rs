@@ -98,18 +98,6 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
     buffer.present().unwrap();
 }
 
-fn draw_horizontal_line(height: usize, buffer: &mut Buffer<&Window, &Window>, window_size: &Pixel, color: Rgba) {
-    if window_size.y as usize <= height {
-        return;
-    }
-    let width = window_size.x as usize;
-    let line = height * width;
-    for index in 0..width {
-        buffer[index + line] = color.into();
-    }
-}
-
-
 pub fn draw_image<'a, R: ColorRect<Rgba>>(mut buffer: Buffer<&Window, &Window>, win_width: usize, win_height: usize, x: isize, y: isize, image: &R) {
     let bytes = image.get_bytes();
 
@@ -133,7 +121,17 @@ pub fn draw_image<'a, R: ColorRect<Rgba>>(mut buffer: Buffer<&Window, &Window>, 
     }
 }
 
-pub fn draw_monochrome_image<'a, R: ColorRect<u8, u8>, C: Into<u32>>(buffer: &mut Buffer<&Window, &Window>, win_width: usize, win_height: usize, x: isize, y: isize, image: &R, black: Rgba, white: Rgba) {
+pub fn draw_monochrome_image<'a, R: ColorRect<u8, u8>, C: Into<u32>>
+
+    (
+        buffer: &mut Buffer<&Window, &Window>,
+        win_width: usize, win_height: usize,
+        x: isize, y: isize,
+        image: &R,
+        black: Rgba,
+        white: Rgba
+    ) {
+
     let bytes = image.get_bytes();
 
     let mut gx = x;
@@ -148,7 +146,14 @@ pub fn draw_monochrome_image<'a, R: ColorRect<u8, u8>, C: Into<u32>>(buffer: &mu
 
                 let color = {
                     let mono = bytes[counter];
-                    Rgba::new(mono, mono, mono, 255)
+
+                    match mono {
+                        0 => black,
+                        255 => white,
+                        m => {
+                            black / m + white / (255 - m)
+                        }
+                    }
                 };
 
                 buffer[ny * win_width + nx] = color.into();
