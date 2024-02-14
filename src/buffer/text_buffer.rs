@@ -1,10 +1,14 @@
 use std::{error::Error, fmt::Display};
 
+use fontdue::layout::Layout;
+
+use crate::state::application::State;
 
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+
 pub struct Page {
-    text: Vec<String>
+    text: Vec<String>,
+    layout: Layout
 }
 
 impl Page {
@@ -229,24 +233,11 @@ impl Page {
     }
 }
 
-impl From<&str> for Page {
-    fn from(value: &str) -> Self {
-
-        let text = value.split('\n')
-            .map(|x| {
-            String::from(x)
-        }).collect();
-
-        Self {
-            text
-        }
-    }
-}
-
 impl Default for Page {
     fn default() -> Self {
         Self {
-            text: vec![String::new()]
+            text: vec![String::new()],
+            layout: Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown)
         }
     }
 }

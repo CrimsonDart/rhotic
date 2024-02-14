@@ -1,12 +1,14 @@
 
 
 
-use fontdue::layout::{Layout, TextStyle};
+use std::collections::{btree_map::OccupiedEntry, hash_map::{VacantEntry, Entry}};
+
+use fontdue::{layout::{Layout, TextStyle, GlyphRasterConfig, GlyphPosition}, Metrics};
 use softbuffer::{self, Buffer};
 use winit::window::Window;
 
 
-use crate::state::application::State;
+use crate::{state::application::State, buffer::Mode};
 
 use super::{types::Pixel, Rgba, image::{Image, MonoImage, ColorRect}};
 
@@ -18,39 +20,69 @@ use super::{types::Pixel, Rgba, image::{Image, MonoImage, ColorRect}};
 //
 pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &mut State) {
 
+    buffer.fill(Rgba::DARK_GRAY.into());
 
-    buffer.fill(Rgba::new(32, 32, 32, 255).into());
-
-    let size = state.glyph_scale;
-
-
-    let font = &state.font;
-
-    let line_size = font.horizontal_line_metrics(size).unwrap().new_line_size as usize;
-
-    let mut layout = Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
-    let text = state.buffer.page.as_string();
-
-    let text = TextStyle {
-        text: text.as_str(),
-        px: size,
-        font_index: 0,
-        user_data: ()
-    };
-    layout.append(&[font], &text);
-
+    let layout = layout(&state);
     let glyphs = layout.glyphs();
 
     let mut new_lines = 0;
     let mut char_index = 0;
 
     let mut horizontal_cursor_offset = 0;
-
+    // let mut char_advance = 2;
 
     for glyph in glyphs {
 
         if new_lines == state.buffer.line && char_index == state.buffer.cindex {
             horizontal_cursor_offset = glyph.x as isize;
+        }
+
+        if state.buffer.mode == Mode::Command && new_lines == state.buffer.line && char_index == state.buffer.cindex {
+            let (metrics, image) = get_image(glyph, state);
+
+
+            let cursor_left_bound = glyph.x as isize - metrics.xmin as isize;
+
+            let line_position = layout.lines().unwrap()[new_lines];
+            let top_of_line = line_position.baseline_y - line_position.max_ascent;
+
+            draw_rectangle(
+                &mut buffer,
+                window_size.x as usize,
+                window_size.y as usize,
+                cursor_left_bound,
+                top_of_line as isize,
+                metrics.advance_width as usize,
+                line_position.max_new_line_size as usize,
+                Rgba::new_opaque(0x60, 0xAF, 0xFF)
+            );
+
+            if glyph.char_data.rasterize() {
+                draw_monochrome_image::<MonoImage, u8>(
+                    &mut buffer,
+                    window_size.x as usize,
+                    window_size.y as usize,
+                    glyph.x as isize,
+                    glyph.y as isize,
+                    image,
+                    Rgba::new_opaque(0x60, 0xAF, 0xFF),
+                    Rgba::WHITE
+                );
+            }
+
+        } else if glyph.char_data.rasterize() {
+            let image = &get_image(glyph, state).1;
+
+            draw_monochrome_image::<MonoImage, u8>(
+                &mut buffer,
+                window_size.x as usize,
+                window_size.y as usize,
+                glyph.x as isize,
+                glyph.y as isize,
+                image,
+                Rgba::DARK_GRAY,
+                Rgba::WHITE
+            );
         }
 
         if glyph.parent == '\n' {
@@ -59,44 +91,48 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
         } else {
             char_index += 1;
         }
-
-        if !glyph.char_data.rasterize() {
-            continue;
-        }
-
-        let image = match state.char_cache.get(&glyph.key) {
-            Some(s) => s,
-            None => {
-                let r = font.rasterize_indexed(glyph.key.glyph_index, glyph.key.px).1;
-
-                let new_image = MonoImage {
-                    bytes: r,
-                    width: glyph.width,
-                    height: glyph.height
-
-                };
-
-                state.char_cache.insert(glyph.key, new_image);
-                state.char_cache.get(&glyph.key).unwrap()
-            }
-        };
-        //println!("'{}': {metrics:?}", glyph.parent);
-
-        //println!("{} | {}", image.len(), metrics.width * metrics.height);
-
-        draw_monochrome_image::<MonoImage, u8>(&mut buffer, window_size.x as usize, window_size.y as usize, glyph.x as isize, glyph.y as isize, image, Rgba::new(0,0,0,255), Rgba::new(255,255,255,255));
-
     }
 
-    let line_position = layout.lines().unwrap()[new_lines];
+    if state.buffer.mode == Mode::Insert {
+        let line_position = layout.lines().unwrap()[new_lines];
+        let top_of_line = line_position.baseline_y - line_position.max_ascent;
+        draw_rectangle(&mut buffer, window_size.x as usize, window_size.y as usize, horizontal_cursor_offset, top_of_line as isize, 2, line_position.max_new_line_size as usize, Rgba::new_opaque(0x60, 0xAF, 0xFF));
+    }
 
-    let top_of_line = line_position.baseline_y - line_position.max_ascent;
-
-
-
-    draw_rectangle(&mut buffer, window_size.x as usize, window_size.y as usize, horizontal_cursor_offset, top_of_line as isize as isize, 2, line_position.max_new_line_size as usize, Rgba::new_opaque(200, 200, 255));
     buffer.present().unwrap();
 }
+
+fn layout(state: &State) -> Layout {
+    let mut layout = Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
+    let text = state.buffer.page.as_string();
+
+    let text = TextStyle {
+        text: text.as_str(),
+        px: state.glyph_scale,
+        font_index: 0,
+        user_data: ()
+    };
+    layout.append(&[&state.font], &text);
+    layout
+}
+
+fn get_image<'a>(glyph: &GlyphPosition, state: &'a mut State) -> &'a (Metrics, MonoImage) {
+
+    state.char_cache.entry(glyph.key).or_insert({
+        let (metrics, raster) = state.font.rasterize_indexed(glyph.key.glyph_index, glyph.key.px);
+
+        let new_image = MonoImage {
+            bytes: raster,
+            width: glyph.width,
+            height: glyph.height
+        };
+        (metrics, new_image)
+
+    })
+}
+
+
+
 
 pub fn draw_image<'a, R: ColorRect<Rgba>>(mut buffer: Buffer<&Window, &Window>, win_width: usize, win_height: usize, x: isize, y: isize, image: &R) {
     let bytes = image.get_bytes();
@@ -144,16 +180,12 @@ pub fn draw_monochrome_image<'a, R: ColorRect<u8, u8>, C: Into<u32>>
 
             if nx < win_width && ny < win_height {
 
-                let color = {
-                    let mono = bytes[counter];
 
-                    match mono {
-                        0 => black,
-                        255 => white,
-                        m => {
-                            black / m + white / (255 - m)
-                        }
-                    }
+
+                let color = match bytes[counter] {
+                    0 => { black },
+                    255 => {white},
+                    b => { black.blend(white, b) }
                 };
 
                 buffer[ny * win_width + nx] = color.into();

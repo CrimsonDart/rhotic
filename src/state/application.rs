@@ -11,7 +11,7 @@ pub struct State {
     pub is_focused: bool,
     pub is_colored: bool,
     pub font: Font,
-    pub char_cache: HashMap<GlyphRasterConfig, MonoImage>,
+    pub char_cache: HashMap<GlyphRasterConfig, (Metrics, MonoImage)>,
     pub glyph_scale: f32,
     pub buffer: Buffer
 }
@@ -20,6 +20,7 @@ impl State {
 
     pub fn new() -> anyhow::Result<Self> {
         let font = load_ttf("./assets/fonts/FiraCode-Regular.ttf")?;
+
         Ok(Self {
             is_focused: false,
             is_colored: false,

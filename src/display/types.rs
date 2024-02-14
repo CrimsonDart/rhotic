@@ -1,52 +1,15 @@
 use std::fmt::{Formatter, Display};
-use std::ops::{Add, Index, IndexMut, Sub, Mul, Div};
+use std::ops::{Add, Index, IndexMut};
+
 
 pub type Pixel = Point<u32>;
 
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Color {
-    Red = 0,
+    Red = 2,
     Green = 1,
-    Blue = 2,
+    Blue = 0,
     Alpha = 3
-}
-
-pub enum Rgbi {
-    Black,
-    DarkGray,
-    LightGray,
-    White,
-    DarkBlue,
-    Blue,
-    DarkGreen,
-    Green,
-    DarkCyan,
-    Cyan,
-    DarkRed,
-    Red,
-    DarkMagenta,
-    Magenta,
-    DarkYellow,
-    Yellow,
-}
-
-pub enum MCWool {
-    Black,
-    DarkGray,
-    Gray,
-    White,
-    Brown,
-    Red,
-    Orange,
-    Yellow,
-    Lime,
-    Green,
-    Cyan,
-    LightBlue,
-    Blue,
-    Purple,
-    Magenta,
-    Pink
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -56,100 +19,49 @@ pub struct Rgba {
 
 impl Rgba {
 
-    pub const BLACK: Rgba = Rgba::new(0, 0, 0, 255);
+    pub const BLACK: Rgba = Rgba::new_opaque(0, 0, 0);
     pub const WHITE: Rgba = Rgba::new_opaque(255, 255, 255);
 
+    pub const GRAY: Rgba = Rgba::new_opaque(0xAA, 0xAA, 0xAA);
+    pub const DARK_GRAY: Rgba = Rgba::new_opaque(55, 55, 55);
 
+    // Primary Additive Colors
+    pub const RED: Rgba = Rgba::new_opaque(255, 0, 0);
+    pub const GREEN: Rgba = Rgba::new_opaque(0, 255, 0);
+    pub const BLUE: Rgba = Rgba::new_opaque(0, 0, 255);
 
+    // Primary Subtractive Colors
+    pub const MAGENTA: Rgba = Rgba::new_opaque(255, 0, 255);
+    pub const CYAN: Rgba = Rgba::new_opaque(0, 255, 255);
+    pub const YELLOW: Rgba = Rgba::new_opaque(255, 255, 0);
 
     pub const fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
         Self {
-            value: [red, green, blue, alpha]
+            value: [blue, green, red, alpha]
         }
     }
 
     pub const fn new_opaque(red: u8, green: u8, blue: u8) -> Self {
         Self {
-            value: [red, green, blue, 255]
+            value: [blue, green, red, 255]
         }
     }
-}
 
-impl Add for Rgba {
-    type Output = Rgba;
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self[0] = self[0].checked_add(rhs[0]).unwrap_or(255);
-        self[1] = self[1].checked_add(rhs[1]).unwrap_or(255);
-        self[2] = self[2].checked_add(rhs[2]).unwrap_or(255);
-        self[3] = self[3].checked_add(rhs[3]).unwrap_or(255);
+    pub fn blend(mut self, rhs: Self, proportion: u8) -> Self {
+        use Color::*;
+
+        self[Red] = blend_color(self[Red], rhs[Red], proportion);
+        self[Green] = blend_color(self[Green], rhs[Green], proportion);
+        self[Blue] = blend_color(self[Blue], rhs[Blue], proportion);
 
         self
     }
 }
 
-impl Add<u8> for Rgba {
-    type Output = Rgba;
-    fn add(mut self, rhs: u8) -> Self::Output {
-        self[0] = self[0].checked_add(rhs).unwrap_or(255);
-        self[1] = self[1].checked_add(rhs).unwrap_or(255);
-        self[2] = self[2].checked_add(rhs).unwrap_or(255);
-        self[3] = self[3].checked_add(rhs).unwrap_or(255);
+fn blend_color(a: u8, b: u8, t: u8) -> u8 {
 
-        self
-    }
-}
-
-impl Sub for Rgba {
-    type Output = Rgba;
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        self[0] = self[0].checked_sub(rhs[0]).unwrap_or(0);
-        self[1] = self[1].checked_sub(rhs[1]).unwrap_or(0);
-        self[2] = self[2].checked_sub(rhs[2]).unwrap_or(0);
-        self[3] = self[3].checked_sub(rhs[3]).unwrap_or(0);
-
-        self
-    }
-}
-
-impl Sub<u8> for Rgba {
-    type Output = Rgba;
-    fn sub(mut self, rhs: u8) -> Self::Output {
-        self[0] = self[0].checked_sub(rhs).unwrap_or(0);
-        self[1] = self[1].checked_sub(rhs).unwrap_or(0);
-        self[2] = self[2].checked_sub(rhs).unwrap_or(0);
-        self[3] = self[3].checked_sub(rhs).unwrap_or(0);
-
-        self
-    }
-}
-
-impl Mul<u8> for Rgba {
-    type Output = Rgba;
-    fn mul(mut self, rhs: u8) -> Self::Output {
-        self[0] = self[0].checked_mul(rhs).unwrap_or(255);
-        self[1] = self[1].checked_mul(rhs).unwrap_or(255);
-        self[2] = self[2].checked_mul(rhs).unwrap_or(255);
-        self[3] = self[3].checked_mul(rhs).unwrap_or(255);
-
-        self
-    }
-}
-
-impl Div<u8> for Rgba {
-    type Output = Rgba;
-    fn div(mut self, rhs: u8) -> Self::Output {
-
-        if rhs == 0 {
-            panic!("Tried to divide by Zero.");
-        }
-
-        self[0] /= rhs;
-        self[1] /= rhs;
-        self[2] /= rhs;
-        self[3] /= rhs;
-
-        self
-    }
+    let (a, b, t) = (a as u16, b as u16, t as u16);
+    (((b * t) + (a * (255 - t)) + 1) >> 8) as u8
 }
 
 impl Index<Color> for Rgba {
@@ -389,4 +301,10 @@ mod test {
 
 
     }
+
+
+
+
+
+
 }
