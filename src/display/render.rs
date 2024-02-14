@@ -131,6 +131,11 @@ fn get_image<'a>(glyph: &GlyphPosition, state: &'a mut State) -> &'a (Metrics, M
     })
 }
 
+struct Canvas<'a> {
+    buffer: &'a mut Buffer<'a, &'a Window, &'a Window>,
+    width: usize,
+    height: usize
+}
 
 
 

@@ -3,6 +3,7 @@ use winit::keyboard::PhysicalKey;
 use self::text_buffer::Page;
 
 mod text_buffer;
+mod event;
 
 pub struct Buffer {
     pub page: Page,
@@ -11,8 +12,6 @@ pub struct Buffer {
     pub cindex_mem: usize,
     pub mode: Mode,
 }
-
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Mode {
@@ -72,29 +71,32 @@ impl Buffer {
 
     // Forces the cursor in bounds of the text.
     pub fn validate_cursor(&mut self) {
+
         if self.page.len() <= self.line {
             self.line = self.page.len() - 1;
         }
 
         let c = self.page.get_line(self.line).unwrap().chars().count();
+
+
+
         if c < self.cindex {
             self.cindex = c;
         }
     }
+
+
+
 
     pub fn press_key(&mut self, key: PhysicalKey) {
         if let PhysicalKey::Code(k) = key {
             use winit::keyboard::KeyCode::*;
             match k {
                 ArrowLeft => {
-                    if self.cindex != 0 {
-                        self.cindex -= 1;
-                    }
+                    self.move_cursor_left();
                 },
                 ArrowRight => {
-                    if self.cindex != self.page.get_line(self.line).unwrap_or("").chars().count() + 1 {
-                        self.cindex += 1;
-                    }
+                    self.move_cursor_right();
                 },
                 _ => {}
             }
@@ -121,14 +123,10 @@ impl Buffer {
             use winit::keyboard::KeyCode::*;
             match k {
                 ArrowLeft => {
-                    if self.cindex != 0 {
-                        self.cindex -= 1;
-                    }
+                    self.move_cursor_left();
                 },
                 ArrowRight => {
-                    if self.cindex != self.page.get_line(self.line).unwrap_or("").chars().count() + 1 {
-                        self.cindex += 1;
-                    }
+                    self.move_cursor_right();
                 },
                 _ => {}
             }
@@ -138,14 +136,14 @@ impl Buffer {
     pub fn move_cursor_left(&mut self) -> bool {
         if self.cindex != 0 {
             self.cindex -= 1;
-            return true;
+            true
+        } else {
+            false
         }
-        false
     }
 
     pub fn move_cursor_right(&mut self) -> bool {
-        let line_len = self.page.get_line(self.line).unwrap_or("").chars().count();
-        if self.cindex + 1 != line_len {
+        if self.cindex != self.page.get_line(self.line).unwrap_or("").chars().count() {
             self.cindex += 1;
             return true;
         }
