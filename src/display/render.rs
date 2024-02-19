@@ -28,16 +28,16 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
     let mut new_lines = 0;
     let mut char_index = 0;
 
-    let mut horizontal_cursor_offset = 0;
-    // let mut char_advance = 2;
+    let (cursor_x, cursor_y) = state.buffer.get_real_cursor();
+
 
     for glyph in glyphs {
 
-        if new_lines == state.buffer.line && char_index == state.buffer.cindex {
-            horizontal_cursor_offset = glyph.x as isize;
-        }
 
-        if state.buffer.mode == Mode::Command && new_lines == state.buffer.line && char_index == state.buffer.cindex {
+        if new_lines == cursor_y && char_index == cursor_x {
+
+            let mode = state.buffer.mode;
+
             let (metrics, image) = get_image(glyph, state);
 
 
@@ -46,18 +46,63 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
             let line_position = layout.lines().unwrap()[new_lines];
             let top_of_line = line_position.baseline_y - line_position.max_ascent;
 
-            draw_rectangle(
-                &mut buffer,
-                window_size.x as usize,
-                window_size.y as usize,
-                cursor_left_bound,
-                top_of_line as isize,
-                metrics.advance_width as usize,
-                line_position.max_new_line_size as usize,
-                Rgba::new_opaque(0x60, 0xAF, 0xFF)
-            );
+            if mode == Mode::Command {
+                draw_rectangle(
+                    &mut buffer,
+                    window_size.x as usize,
+                    window_size.y as usize,
+                    cursor_left_bound,
+                    top_of_line as isize,
+                    metrics.advance_width as usize,
+                    line_position.max_new_line_size as usize,
+                    Rgba::new_opaque(0x60, 0xAF, 0xFF)
+                );
 
+                if glyph.char_data.rasterize() {
+
+                    draw_monochrome_image::<MonoImage, u8>(
+                        &mut buffer,
+                        window_size.x as usize,
+                        window_size.y as usize,
+                        glyph.x as isize,
+                        glyph.y as isize,
+                        image,
+                        Rgba::new_opaque(0x60, 0xAF, 0xFF),
+                        Rgba::WHITE
+                    );
+                }
+
+            } else {
+                if glyph.char_data.rasterize() {
+
+                    draw_monochrome_image::<MonoImage, u8>(
+                        &mut buffer,
+                        window_size.x as usize,
+                        window_size.y as usize,
+                        glyph.x as isize,
+                        glyph.y as isize,
+                        image,
+                        Rgba::DARK_GRAY,
+                        Rgba::WHITE
+                    );
+                }
+
+                draw_rectangle(
+                    &mut buffer,
+                    window_size.x as usize,
+                    window_size.y as usize,
+                    cursor_left_bound,
+                    top_of_line as isize,
+                    2,
+                    line_position.max_new_line_size as usize,
+                    Rgba::new_opaque(0x60, 0xAF, 0xFF)
+                );
+
+            }
+        } else {
             if glyph.char_data.rasterize() {
+                let image = &get_image(glyph, state).1;
+
                 draw_monochrome_image::<MonoImage, u8>(
                     &mut buffer,
                     window_size.x as usize,
@@ -65,25 +110,14 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
                     glyph.x as isize,
                     glyph.y as isize,
                     image,
-                    Rgba::new_opaque(0x60, 0xAF, 0xFF),
+                    Rgba::DARK_GRAY,
                     Rgba::WHITE
                 );
             }
 
-        } else if glyph.char_data.rasterize() {
-            let image = &get_image(glyph, state).1;
-
-            draw_monochrome_image::<MonoImage, u8>(
-                &mut buffer,
-                window_size.x as usize,
-                window_size.y as usize,
-                glyph.x as isize,
-                glyph.y as isize,
-                image,
-                Rgba::DARK_GRAY,
-                Rgba::WHITE
-            );
         }
+
+
 
         if glyph.parent == '\n' {
             new_lines += 1;
@@ -91,12 +125,6 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
         } else {
             char_index += 1;
         }
-    }
-
-    if state.buffer.mode == Mode::Insert {
-        let line_position = layout.lines().unwrap()[new_lines];
-        let top_of_line = line_position.baseline_y - line_position.max_ascent;
-        draw_rectangle(&mut buffer, window_size.x as usize, window_size.y as usize, horizontal_cursor_offset, top_of_line as isize, 2, line_position.max_new_line_size as usize, Rgba::new_opaque(0x60, 0xAF, 0xFF));
     }
 
     buffer.present().unwrap();

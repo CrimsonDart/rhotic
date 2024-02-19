@@ -184,6 +184,37 @@ impl Input {
         self.keys = new_vec;
         self.text = String::new();
     }
+
+    pub fn get_pressed_keys(&self) -> Vec<PhysicalKey> {
+        let mut out = Vec::new();
+
+        for (k, b) in self.keys.iter() {
+            if b.is_pressed() {
+                out.push(k.clone());
+            }
+        }
+
+        out
+    }
+
+    pub fn is_key_pressed(&self, key: PhysicalKey) -> bool {
+        for (k, b) in self.keys.iter() {
+            if *k == key && b.is_pressed() {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn is_any_key_pressed(&self, keys: &[PhysicalKey]) -> bool {
+        for (k, b) in self.keys.iter() {
+            if keys.contains(k) && b.is_pressed() {
+                return true;
+            }
+        }
+        false
+    }
+
 }
 
 impl Default for Input {
@@ -219,6 +250,14 @@ impl ButtonState {
             Pressed => Held(Instant::now()),
             Released => Depressed,
             _ => self
+        }
+    }
+
+    pub fn is_pressed(&self) -> bool {
+        use ButtonState::*;
+        match self {
+            Pressed | Echo(_) | Held(_) => true,
+            _ => false
         }
     }
 }

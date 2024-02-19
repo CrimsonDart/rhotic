@@ -4,12 +4,12 @@ use self::text_buffer::Page;
 
 mod text_buffer;
 mod event;
+mod minibuffer;
 
 pub struct Buffer {
     pub page: Page,
     pub line: usize,
     pub cindex: usize,
-    pub cindex_mem: usize,
     pub mode: Mode,
 }
 
@@ -70,7 +70,7 @@ impl Buffer {
     }
 
     // Forces the cursor in bounds of the text.
-    pub fn validate_cursor(&mut self) {
+    fn validate_cursor(&mut self) {
 
         if self.page.len() <= self.line {
             self.line = self.page.len() - 1;
@@ -78,15 +78,23 @@ impl Buffer {
 
         let c = self.page.get_line(self.line).unwrap().chars().count();
 
-
-
         if c < self.cindex {
             self.cindex = c;
         }
     }
 
+    pub fn get_real_cursor(&self) -> (usize, usize) {
+        ({
+            let len = self.page.get_line(self.line).unwrap_or("").chars().count();
 
+            if self.cindex > len {
+                len
+            } else {
+                self.cindex
+            }
 
+        }, self.line)
+    }
 
     pub fn press_key(&mut self, key: PhysicalKey) {
         if let PhysicalKey::Code(k) = key {
@@ -97,6 +105,12 @@ impl Buffer {
                 },
                 ArrowRight => {
                     self.move_cursor_right();
+                },
+                ArrowDown => {
+                    self.move_cursor_down();
+                },
+                ArrowUp => {
+                    self.move_cursor_up();
                 },
                 _ => {}
             }
@@ -128,23 +142,46 @@ impl Buffer {
                 ArrowRight => {
                     self.move_cursor_right();
                 },
+                ArrowDown => {
+                    self.move_cursor_down();
+                },
+                ArrowUp => {
+                    self.move_cursor_up();
+                },
                 _ => {}
             }
         }
     }
 
     pub fn move_cursor_left(&mut self) -> bool {
+        self.validate_cursor();
         if self.cindex != 0 {
             self.cindex -= 1;
-            true
-        } else {
-            false
+            return true;
         }
+        false
     }
 
     pub fn move_cursor_right(&mut self) -> bool {
+        self.validate_cursor();
         if self.cindex != self.page.get_line(self.line).unwrap_or("").chars().count() {
             self.cindex += 1;
+            return true;
+        }
+        false
+    }
+
+    pub fn move_cursor_down(&mut self) -> bool {
+        if self.line != self.page.len() -1 {
+            self.line += 1;
+            return true;
+        }
+        false
+    }
+
+    pub fn move_cursor_up(&mut self) -> bool {
+        if self.line != 0 {
+            self.line -= 1;
             return true;
         }
         false
@@ -157,7 +194,6 @@ impl Default for Buffer {
             page: Default::default(),
             cindex: 0,
             line: 0,
-            cindex_mem: 0,
             mode: Mode::Command,
         }
     }

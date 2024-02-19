@@ -36,7 +36,14 @@ impl State {
 
         // println!("{:?}", self.input);
 
-        if !self.input.text.is_empty() {
+        if !self.input.text.is_empty() && !self.input.is_any_key_pressed(
+            &[
+                PhysicalKey::Code(KeyCode::AltLeft),
+                PhysicalKey::Code(KeyCode::AltRight),
+                PhysicalKey::Code(KeyCode::ControlLeft),
+                PhysicalKey::Code(KeyCode::ControlRight)
+            ]
+        ) {
             self.buffer.text_in(self.input.text.as_str());
         }
 
