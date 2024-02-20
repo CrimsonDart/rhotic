@@ -58,6 +58,28 @@ impl<O, F: Fn(&mut O) -> bool> CommandBinds<O, F> {
     pub fn insert(&mut self, command: Command, function: Function<O, F>) {
         self.map.insert(command, function);
     }
+
+    fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+            pd: PhantomData
+        }
+    }
+
+    pub fn from_toml(file: &[u8]) -> Self {
+        panic!("")
+    }
+}
+
+impl<O, F: Fn(&mut O) -> bool> Function<O, F> {
+    fn new(name: &'static str, func: F, repeat: RepeatType) -> Self {
+        Self {
+            name,
+            func,
+            repeat,
+            pd: PhantomData
+        }
+    }
 }
 
 pub enum FunctionCallError {
