@@ -1,7 +1,8 @@
-use std::{collections::HashMap, marker::PhantomData, time::Duration};
+use std::{collections::HashMap, marker::PhantomData, time::Duration, error::Error, string::FromUtf8Error};
 
-use serde::Serialize;
 use winit::keyboard::KeyCode;
+
+use toml::Table;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Command {
@@ -66,8 +67,10 @@ impl<O, F: Fn(&mut O) -> bool> CommandBinds<O, F> {
         }
     }
 
-    pub fn from_toml(file: &[u8]) -> Self {
-        panic!("")
+    pub fn from_toml(file: Vec<u8>) -> Result<Self, FromUtf8Error> {
+        let table = String::from_utf8(file)?.parse::<Table>();
+        panic!();
+        // TODO
     }
 }
 
