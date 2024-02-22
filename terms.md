@@ -10,12 +10,9 @@ A stage is the emacs equivalent of a mode. A Stage can be anything from a text b
 A Package can be thought of as a mini program that can be installed within Rhotic. Just like emacs or any linux package manager.
 
 ### Store
-Where packages can be downloaded, and thus installed.
+A stage where packages can be downloaded, and thus installed.
 
 # Minibuffer
 The minibuffer is a little text bar at the bottom of the window, (not stage window) where the command being entered shows.
 It also shows other status information.
-
-
-
 

@@ -67,10 +67,16 @@ impl<O, F: Fn(&mut O) -> bool> CommandBinds<O, F> {
         }
     }
 
-    pub fn from_toml(file: Vec<u8>) -> Result<Self, FromUtf8Error> {
-        let table = String::from_utf8(file)?.parse::<Table>();
-        panic!();
-        // TODO
+    pub fn from_toml(file: Vec<u8>) -> anyhow::Result<Self> {
+        let table = String::from_utf8(file)?.parse::<Table>()?;
+
+        if let Some(toml::Value::Table(table)) = table.get("keybinds") {
+
+        }
+
+
+        return anyhow::bail!("No Keybinds entry found in stage file.");
+
     }
 }
 
