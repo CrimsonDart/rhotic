@@ -1,3 +1,7 @@
 keybinds: Table {
-    "bind" = "function" or "array of functions"
+    "function or macro name" = binds: Array of Strings or String
+}
+
+macros: Table {
+    "macro name" = Array of function names
 }

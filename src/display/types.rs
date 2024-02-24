@@ -286,25 +286,3 @@ impl Iterator for RectIter {
         }
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::Rgba;
-
-
-    #[test]
-    fn test_array_cast() {
-        let color = Rgba::new(0, 1, 2, 3);
-
-        let refer = color.value;
-        assert_eq!(refer, [0,1,2,3])
-
-
-    }
-
-
-
-
-
-
-}

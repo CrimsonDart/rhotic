@@ -5,6 +5,8 @@ use self::text_buffer::Page;
 mod text_buffer;
 mod event;
 mod minibuffer;
+mod stage;
+mod textstage;
 
 pub struct Buffer {
     pub page: Page,

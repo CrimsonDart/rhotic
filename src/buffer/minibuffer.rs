@@ -4,6 +4,10 @@ use winit::keyboard::KeyCode;
 
 use toml::Table;
 
+use super::stage::{Function, Stage};
+
+pub type Func<S: Stage> = fn(&mut S) -> bool;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Command {
     bites: Vec<Bite>
@@ -17,84 +21,107 @@ struct Bite {
     key: &'static str
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum RepeatType {
-    None,
-    Tick(Duration),
-    OS
+pub struct FunctionMap<S: Stage> {
+    map: HashMap<&'static str, Func<S>>
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Function<O, F: Fn(&mut O) -> bool> {
-    name: &'static str,
-    func: F,
-    repeat: RepeatType,
-    pd: PhantomData<O>
+impl<S: Stage + 'static> FunctionMap<S> {
+    pub fn new() -> Self {
+
+        let mut map = HashMap::new();
+
+        for (key, value) in S::get_functions() {
+            map.insert(*key, *value);
+        }
+        Self {
+            map
+        }
+    }
+
+    pub fn bind(self, table: toml::Table) -> CommandBinds<S> {
+
+        use toml::Value::*;
+
+        let keybinds = if let Some(Table(keybinds))= table.get("keybinds") {
+            keybinds
+        } else {
+            return CommandBinds { command_map: HashMap::new(), name_map: self.map };
+        };
+
+        let mut command_map = HashMap::new();
+
+        for (name, func) in self.map.iter() {
+
+            let bind = if let Some(s) = keybinds.get(*name) {
+                s
+            } else {
+                continue;
+            };
+
+            match bind {
+                String(string) => {
+                    if let Some(c) = Command::from_string(string) {
+                        command_map.insert(c, *func);
+                    }
+                },
+                Array(array) => {
+                   for value in array {
+                       if let String(s) = value {
+                           if let Some(c) = Command::from_string(s) {
+                               command_map.insert(c, *func);
+                           }
+                       }
+                   }
+
+                },
+                _ => { continue; }
+            }
+        }
+
+        CommandBinds { command_map, name_map: self.map }
+
+    }
 }
 
 #[derive(Debug)]
-pub struct CommandBinds<O, F: Fn(&mut O) -> bool> {
-    map: HashMap<Command, Function<O, F>>,
-    pd: PhantomData<O>
-}
-
-impl<O, F: Fn(&mut O) -> bool> CommandBinds<O, F> {
-    pub fn call(&self, command: &Command, buff: &mut O) -> Result<(), FunctionCallError> {
-
-        let value = self.map.get(command);
-        match value {
-            Some(v) => {
-                if (v.func)(buff) {
-                    Ok(())
-                } else {
-                    Err(FunctionCallError::FunctionFail)
-                }
-            },
-            None => {
-                Err(FunctionCallError::FunctionNotFound)
-            }
-        }
-    }
-
-    pub fn insert(&mut self, command: Command, function: Function<O, F>) {
-        self.map.insert(command, function);
-    }
-
-    fn new() -> Self {
-        Self {
-            map: HashMap::new(),
-            pd: PhantomData
-        }
-    }
-
-    pub fn from_toml(file: Vec<u8>) -> anyhow::Result<Self> {
-        let table = String::from_utf8(file)?.parse::<Table>()?;
-
-        if let Some(toml::Value::Table(table)) = table.get("keybinds") {
-
-        }
-
-
-        return anyhow::bail!("No Keybinds entry found in stage file.");
-
-    }
-}
-
-impl<O, F: Fn(&mut O) -> bool> Function<O, F> {
-    fn new(name: &'static str, func: F, repeat: RepeatType) -> Self {
-        Self {
-            name,
-            func,
-            repeat,
-            pd: PhantomData
-        }
-    }
+pub struct CommandBinds<S: Stage> {
+    command_map: HashMap<Command, Func<S>>,
+    name_map: HashMap<&'static str, Func<S>>,
 }
 
 pub enum FunctionCallError {
     FunctionFail,
     FunctionNotFound
 }
+
+impl<S: Stage> CommandBinds<S> {
+
+    pub fn name_call(&self, stage: &mut S, string: &str) -> Result<(), FunctionCallError> {
+        if let Some(value) = self.name_map.get(string) {
+            if value(stage) {
+                Ok(())
+            } else {
+                Err(FunctionCallError::FunctionFail)
+            }
+        } else {
+            Err(FunctionCallError::FunctionNotFound)
+        }
+    }
+
+    pub fn command_call(&self, stage: &mut S, command: &Command) -> Result<(), FunctionCallError> {
+        if let Some(value) = self.command_map.get(command) {
+            if value(stage) {
+                Ok(())
+            } else {
+                Err(FunctionCallError::FunctionFail)
+            }
+        } else {
+            Err(FunctionCallError::FunctionNotFound)
+        }
+    }
+}
+
+
 
 
 impl Command {
