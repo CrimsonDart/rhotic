@@ -1,20 +1,14 @@
 use std::{collections::HashMap, cell::OnceCell, sync::OnceLock};
 
+use crate::display::{text_render::{Render, Renderer}, Rgba, font::FontManager};
+
 use super::{text_buffer::Page, stage::{Stage, Function}};
 
-
-
-static FUNCTIONS: OnceLock<HashMap<&'static str, fn(&mut TextStage) -> bool>> = OnceLock::new();
-
-
-
-
-
 pub struct TextStage {
-    page: Page,
+    pub page: Page,
     x: usize,
     y: usize,
-    mode: Mode
+    pub mode: Mode,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -25,13 +19,13 @@ pub enum Mode {
 
 impl Stage for TextStage {
     fn get_functions() -> &'static [(&'static str, fn(&mut Self) -> bool)] {
-
-
-
-
-
-
-        [].as_slice()
+        const VAR: [(&'static str, fn(&mut TextStage) -> bool); 4] = [
+            ("move_left", TextStage::move_cursor_left),
+            ("insert_mode", TextStage::insert_mode),
+            ("backspace", TextStage::backspace),
+            ("command_mode", TextStage::command_mode)
+        ];
+        VAR.as_ref()
     }
 
     fn input_text(&mut self, text: &str) {
@@ -40,21 +34,7 @@ impl Stage for TextStage {
 
             for c in text.chars() {
                 match c {
-                    '\u{8}' => {
-                        if self.x != 0 {
-                            self.x -= 1;
-                            self.page.remove_char(self.y, self.x);
-
-                        } else if self.y != 0 {
-                            let line = self.page.remove_line(self.y);
-                            self.y -= 1;
-                            self.x = self.page.get_line(self.y).unwrap_or("").chars().count();
-                            self.page.push_str(self.y, line.as_str());
-                        }
-                    },
-                    '\u{1b}' => {
-                        self.mode = Mode::Command;
-                    },
+                    '\u{8}' | '\u{1b}' => {},
                     '\r' | '\n' => {
                         match self.page.insert_char(self.y, self.x, '\n') {
                             Ok(_) => {},
@@ -79,7 +59,17 @@ impl Stage for TextStage {
                 }
             }
         }
+    }
+}
 
+impl Default for TextStage {
+    fn default() -> Self {
+        Self {
+            page: Default::default(),
+            x: 0,
+            y: 0,
+            mode: Mode::Insert
+        }
     }
 }
 
@@ -98,5 +88,56 @@ impl TextStage {
         }
     }
 
+    pub fn move_cursor_left(&mut self) -> bool {
+        self.validate_cursor();
+        if self.x != 0 {
+            self.x -= 1;
+            return true;
+        }
+        false
+    }
 
+    pub fn insert_mode(&mut self) -> bool {
+        if self.mode == Mode::Command {
+            self.mode = Mode::Insert;
+        }
+        true
+    }
+
+    pub fn command_mode(&mut self) -> bool {
+        self.mode = Mode::Command;
+        true
+    }
+
+    pub fn backspace(&mut self) -> bool {
+
+        if self.mode == Mode::Command {
+            return self.move_cursor_left();
+        }
+
+        if self.x != 0 {
+            self.x -= 1;
+            self.page.remove_char(self.y, self.x);
+
+        } else if self.y != 0 {
+            let line = self.page.remove_line(self.y);
+            self.y -= 1;
+            self.x = self.page.get_line(self.y).unwrap_or("").chars().count();
+            self.page.push_str(self.y, line.as_str());
+        }
+        true
+    }
+
+    pub fn get_real_cursor(&self) -> (usize, usize) {
+        ({
+            let len = self.page.get_line(self.y).unwrap_or("").chars().count();
+
+            if self.x > len {
+                len
+            } else {
+                self.x
+            }
+
+        }, self.y)
+    }
 }

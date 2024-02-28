@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 
 
-pub trait Stage {
+pub trait Stage where Self: Default {
     fn get_functions() -> &'static [(&'static str, fn(&mut Self) -> bool)];
     fn input_text(&mut self, string: &str);
 }

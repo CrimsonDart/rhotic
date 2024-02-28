@@ -1,0 +1,12 @@
+
+
+
+
+[keybinds]
+insert_mode = "i"
+backspace = "backspace"
+command_mode = "escape"
+move_left = "arrowleft"
+move_up = "arrowup"
+move_down = "arrowdown"
+move_right = "arrowright"

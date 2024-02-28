@@ -4,6 +4,8 @@ use winit::keyboard::KeyCode;
 
 use toml::Table;
 
+use crate::file::toml::Toml;
+
 use super::stage::{Function, Stage};
 
 pub type Func<S: Stage> = fn(&mut S) -> bool;
@@ -38,11 +40,11 @@ impl<S: Stage + 'static> FunctionMap<S> {
         }
     }
 
-    pub fn bind(self, table: toml::Table) -> CommandBinds<S> {
+    pub fn bind(self, config: Toml) -> CommandBinds<S> {
 
         use toml::Value::*;
 
-        let keybinds = if let Some(Table(keybinds))= table.get("keybinds") {
+        let keybinds = if let Some(Table(keybinds))= config.table.get("keybinds") {
             keybinds
         } else {
             return CommandBinds { command_map: HashMap::new(), name_map: self.map };
@@ -53,8 +55,11 @@ impl<S: Stage + 'static> FunctionMap<S> {
         for (name, func) in self.map.iter() {
 
             let bind = if let Some(s) = keybinds.get(*name) {
+                println!("{s} found!");
                 s
+
             } else {
+                println!("{name} not found in file {}!", config.get_file_name());
                 continue;
             };
 
@@ -89,6 +94,7 @@ pub struct CommandBinds<S: Stage> {
     name_map: HashMap<&'static str, Func<S>>,
 }
 
+#[derive(Debug)]
 pub enum FunctionCallError {
     FunctionFail,
     FunctionNotFound
@@ -149,7 +155,7 @@ impl Command {
 
         let mut out = Vec::new();
 
-        for sting in s.split(' ') {
+        for sting in s.split_whitespace() {
             if let Some(b) = Bite::from_string(sting) {
                 out.push(b);
             } else {
@@ -180,6 +186,18 @@ impl Command {
         );
 
         true
+    }
+
+    pub fn new_empty() -> Self {
+        Self {
+            bites: Vec::new()
+        }
+    }
+
+    pub fn new(key: KeyCode, shift: bool, control: bool, alt: bool) -> Self {
+        let mut sel_f = Self::new_empty();
+        sel_f.push(key, shift, control, alt);
+        sel_f
     }
 }
 

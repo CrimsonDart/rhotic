@@ -1,8 +1,13 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::{fs::File, error::Error};
 use std::io::prelude::*;
 
-use fontdue::{Font, FontSettings};
+use fontdue::layout::GlyphRasterConfig;
+use fontdue::{Font, FontSettings, Metrics};
+
+use super::Rgba;
+use super::image::MonoImage;
 
 pub fn load_ttf(path: &str) -> anyhow::Result<Font> {
 
@@ -19,6 +24,30 @@ pub fn load_ttf(path: &str) -> anyhow::Result<Font> {
         Err(s) => {
             Err(FontOpenError { error: s })?
         }
+    }
+}
+
+pub struct FontManager {
+    pub fonts: Vec<Font>,
+    pub cache: HashMap<GlyphRasterConfig, (Metrics, MonoImage)>,
+    pub scale: f32,
+    pub fore: Rgba,
+    pub back: Rgba,
+}
+
+impl FontManager {
+    pub fn new() -> anyhow::Result<Self> {
+        let fonts = vec![
+            load_ttf("./assets/fonts/FiraCode-Regular.ttf")?
+        ];
+
+        Ok(Self {
+            fonts,
+            cache: HashMap::new(),
+            scale: 20.0,
+            fore: Rgba::WHITE,
+            back: Rgba::DARK_GRAY
+        })
     }
 }
 

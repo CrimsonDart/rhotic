@@ -2,11 +2,10 @@ use winit::keyboard::PhysicalKey;
 
 use self::text_buffer::Page;
 
-mod text_buffer;
-mod event;
-mod minibuffer;
-mod stage;
-mod textstage;
+pub mod text_buffer;
+pub mod minibuffer;
+pub mod stage;
+pub mod textstage;
 
 pub struct Buffer {
     pub page: Page,

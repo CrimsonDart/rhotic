@@ -8,9 +8,9 @@ use softbuffer::{self, Buffer};
 use winit::window::Window;
 
 
-use crate::{state::application::State, buffer::Mode};
+use crate::{state::application::State, buffer::textstage::Mode};
 
-use super::{types::Pixel, Rgba, image::{Image, MonoImage, ColorRect}};
+use super::{types::Pixel, Rgba, image::{Image, MonoImage, ColorRect}, text_render::{self, Canvas}};
 
 
 // IF THE WINDOW BORDERS RESIZE FASTER THAN THE WINDOW ITSELF THEN IT'S BECAUSE
@@ -28,7 +28,7 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
     let mut new_lines = 0;
     let mut char_index = 0;
 
-    let (cursor_x, cursor_y) = state.buffer.get_real_cursor();
+    let (cursor_x, cursor_y) = state.stage.get_real_cursor();
 
 
     for glyph in glyphs {
@@ -36,7 +36,7 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
 
         if new_lines == cursor_y && char_index == cursor_x {
 
-            let mode = state.buffer.mode;
+            let mode = state.stage.mode;
 
             let (metrics, image) = get_image(glyph, state);
 
@@ -132,22 +132,22 @@ pub fn render(mut buffer: Buffer<&Window, &Window>, window_size: Pixel, state: &
 
 fn layout(state: &State) -> Layout {
     let mut layout = Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
-    let text = state.buffer.page.as_string();
+    let text = state.stage.page.as_string();
 
     let text = TextStyle {
         text: text.as_str(),
-        px: state.glyph_scale,
+        px: state.font_manager.scale,
         font_index: 0,
         user_data: ()
     };
-    layout.append(&[&state.font], &text);
+    layout.append(&[&state.font_manager.fonts[0]], &text);
     layout
 }
 
 fn get_image<'a>(glyph: &GlyphPosition, state: &'a mut State) -> &'a (Metrics, MonoImage) {
 
-    state.char_cache.entry(glyph.key).or_insert({
-        let (metrics, raster) = state.font.rasterize_indexed(glyph.key.glyph_index, glyph.key.px);
+    state.font_manager.cache.entry(glyph.key).or_insert({
+        let (metrics, raster) = state.font_manager.fonts[0].rasterize_indexed(glyph.key.glyph_index, glyph.key.px);
 
         let new_image = MonoImage {
             bytes: raster,
@@ -158,14 +158,6 @@ fn get_image<'a>(glyph: &GlyphPosition, state: &'a mut State) -> &'a (Metrics, M
 
     })
 }
-
-struct Canvas<'a> {
-    buffer: &'a mut Buffer<'a, &'a Window, &'a Window>,
-    width: usize,
-    height: usize
-}
-
-
 
 pub fn draw_image<'a, R: ColorRect<Rgba>>(mut buffer: Buffer<&Window, &Window>, win_width: usize, win_height: usize, x: isize, y: isize, image: &R) {
     let bytes = image.get_bytes();
