@@ -1,8 +1,10 @@
 use std::{collections::HashMap, cell::OnceCell, sync::OnceLock};
 
+use winit::keyboard::KeyCode;
+
 use crate::display::{text_render::{Render, Renderer}, Rgba, font::FontManager};
 
-use super::{text_buffer::Page, stage::{Stage, Function}};
+use super::{text_buffer::Page, stage::Stage};
 
 pub struct TextStage {
     pub page: Page,
@@ -18,47 +20,29 @@ pub enum Mode {
 }
 
 impl Stage for TextStage {
-    fn get_functions() -> &'static [(&'static str, fn(&mut Self) -> bool)] {
-        const VAR: [(&'static str, fn(&mut TextStage) -> bool); 4] = [
-            ("move_left", TextStage::move_cursor_left),
-            ("insert_mode", TextStage::insert_mode),
-            ("backspace", TextStage::backspace),
-            ("command_mode", TextStage::command_mode)
-        ];
-        VAR.as_ref()
-    }
 
-    fn input_text(&mut self, text: &str) {
-        self.validate_cursor();
-        if self.mode == Mode::Insert {
+    const NAME: &'static str = "Text Stage";
 
-            for c in text.chars() {
-                match c {
-                    '\u{8}' | '\u{1b}' => {},
-                    '\r' | '\n' => {
-                        match self.page.insert_char(self.y, self.x, '\n') {
-                            Ok(_) => {},
-                            Err(e) => {
-                                println!("{e}");
-                                return;
-                            }
-                        }
-                        self.y += 1;
-                        self.x = 0;
-                    },
-                    _  => {
-                        let res = self.page.insert_char(self.y, self.x, c);
-                        match res {
-                            Ok(_) => {},
-                            Err(e) => {
-                                println!("{e}");
-                            }
-                        }
-                        self.x += 1;
-                    }
-                }
-            }
+
+    fn poll(&mut self, input: &crate::display::event_loop::Input) -> anyhow::Result<()> {
+
+        if !input.text.is_empty() && !input.is_any_key_pressed(
+            &[
+                KeyCode::AltLeft,
+                KeyCode::AltRight,
+                KeyCode::ControlLeft,
+                KeyCode::ControlRight
+            ]
+        ) {
+            self.input_text(input.text.as_str());
         }
+
+
+        for (k, v) in input.keys.iter() {
+
+        }
+
+        Ok(())
     }
 }
 
@@ -139,5 +123,38 @@ impl TextStage {
             }
 
         }, self.y)
+    }
+
+    fn input_text(&mut self, text: &str) {
+        self.validate_cursor();
+        if self.mode == Mode::Insert {
+
+            for c in text.chars() {
+                match c {
+                    '\u{8}' | '\u{1b}' => {},
+                    '\r' | '\n' => {
+                        match self.page.insert_char(self.y, self.x, '\n') {
+                            Ok(_) => {},
+                            Err(e) => {
+                                println!("{e}");
+                                return;
+                            }
+                        }
+                        self.y += 1;
+                        self.x = 0;
+                    },
+                    _  => {
+                        let res = self.page.insert_char(self.y, self.x, c);
+                        match res {
+                            Ok(_) => {},
+                            Err(e) => {
+                                println!("{e}");
+                            }
+                        }
+                        self.x += 1;
+                    }
+                }
+            }
+        }
     }
 }

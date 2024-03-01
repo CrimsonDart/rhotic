@@ -1,26 +1,12 @@
-use std::marker::PhantomData;
-
-
+use crate::{display::event_loop::Input, file::toml::Toml};
 
 pub trait Stage where Self: Default {
-    fn get_functions() -> &'static [(&'static str, fn(&mut Self) -> bool)];
-    fn input_text(&mut self, string: &str);
+    fn poll(&mut self, input: &Input) -> anyhow::Result<()>;
+    const NAME: &'static str;
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Function<S: Stage> {
-    name: &'static str,
-    func: fn(&mut S) -> bool,
-    pd: PhantomData<S>
+pub trait Configurable where Self: Default + Stage {
+    fn configure(&mut self, config: Toml) -> anyhow::Result<()>;
+    fn default_configuration() -> Toml;
+    const CONFIG_FILE_NAME: &'static str;
 }
-
-impl<S: Stage> Function<S> {
-    fn new(name: &'static str, func: fn(&mut S) -> bool) -> Self {
-        Self {
-            name,
-            func,
-            pd: PhantomData
-        }
-    }
-}
-
