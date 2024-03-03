@@ -2,11 +2,11 @@ use std::{collections::HashMap, cell::OnceCell, sync::OnceLock};
 
 use winit::keyboard::KeyCode;
 
-use crate::display::{text_render::{Render, Renderer}, Rgba, font::FontManager};
+use crate::display::{Rgba, font::FontManager};
 
-use super::{text_buffer::Page, stage::Stage};
+use super::{text_buffer::Page, stage::{Stage, TextStage}};
 
-pub struct TextStage {
+pub struct TextEdit {
     pub page: Page,
     x: usize,
     y: usize,
@@ -19,7 +19,7 @@ pub enum Mode {
     Command
 }
 
-impl Stage for TextStage {
+impl Stage for TextEdit {
 
     const NAME: &'static str = "Text Stage";
 
@@ -46,7 +46,7 @@ impl Stage for TextStage {
     }
 }
 
-impl Default for TextStage {
+impl Default for TextEdit {
     fn default() -> Self {
         Self {
             page: Default::default(),
@@ -57,7 +57,34 @@ impl Default for TextStage {
     }
 }
 
-impl TextStage {
+impl TextStage for TextEdit {
+    fn get_display_text(&self) -> String {
+        self.page.as_string()
+    }
+
+    fn get_cursor(&self) -> (usize, usize, super::stage::CursorLook) {
+
+        use Mode::*;
+        (
+            {
+                let len = self.page.get_line(self.y).unwrap_or("").chars().count();
+
+                if self.x > len {
+                    len
+                } else {
+                    self.x
+                }
+            },
+            self.y,
+            match self.mode {
+                Insert => crate::buffer::stage::CursorLook::VerticalBar,
+                Command => crate::buffer::stage::CursorLook::Block
+            }
+        )
+    }
+}
+
+impl TextEdit {
     // Forces the cursor in bounds of the text.
     fn validate_cursor(&mut self) {
 
@@ -110,19 +137,6 @@ impl TextStage {
             self.page.push_str(self.y, line.as_str());
         }
         true
-    }
-
-    pub fn get_real_cursor(&self) -> (usize, usize) {
-        ({
-            let len = self.page.get_line(self.y).unwrap_or("").chars().count();
-
-            if self.x > len {
-                len
-            } else {
-                self.x
-            }
-
-        }, self.y)
     }
 
     fn input_text(&mut self, text: &str) {

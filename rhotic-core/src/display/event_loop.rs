@@ -57,7 +57,7 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                             NonZeroU32::new(size.y).unwrap()
                         ).unwrap();
 
-                        let mut buffer = surface.buffer_mut().unwrap();
+                        let buffer = surface.buffer_mut().unwrap();
                         render(buffer, size, &mut state);
                     },
                     Resized(_) => {
@@ -90,35 +90,35 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                     MouseInput { device_id: _, state: pressed, button } => {
 
                         use winit::event::MouseButton::*;
+                        use ButtonState::*;
 
-                        let press = if pressed == ElementState::Pressed {
-                            ButtonState::Pressed
-                        } else {
-                            ButtonState::Released
-                        };
-
-                        match button {
+                        let buf = &mut match button {
                             Left => {
-                                state.input.m1 = press;
+                                state.input.m1
                             },
                             Right => {
-                                state.input.m2 = press;
+                                state.input.m2
                             },
                             Middle => {
-                                state.input.m3 = press;
+                                state.input.m3
                             },
-                            _ => {}
+                            _ => { return; }
+                        };
+
+                        if pressed == ElementState::Pressed {
+                            *buf = ButtonState::Pressed(Instant::now());
+                        } else if let Pressed(t) | Held(t) | Echo(t) | Released(t) = *buf {
+                            *buf = Released(t);
                         }
+
                         window.request_redraw();
                     },
                     KeyboardInput { device_id: _, event, is_synthetic: _ } => {
-
 
                         if event.state == ElementState::Pressed {
                             if let Some(s) = event.logical_key.to_text() {
                                 state.input.text.push_str(s);
                             }
-
                         }
 
                         if let PhysicalKey::Code(code) = event.physical_key {
@@ -129,14 +129,19 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                                             *x = ButtonState::Echo(t)
                                         }
                                     })
-                                    .or_insert(ButtonState::Pressed);
+                                    .or_insert(ButtonState::Pressed(Instant::now()));
                                     return;
                                 }
-                                state.input.keys.insert(code, ButtonState::Pressed);
+                                state.input.keys.insert(code, ButtonState::Pressed(Instant::now()));
                                 return;
                             }
 
-                            state.input.keys.entry(code).or_insert(ButtonState::Released);
+                            state.input.keys.entry(code).and_modify(|x| {
+                                use ButtonState::*;
+                                if let Pressed(t) | Held(t) | Echo(t) | Released(t) = x {
+                                    *x = Released(*t)
+                                }
+                            });
                         }
                     },
                     _ => {}
@@ -172,12 +177,8 @@ impl Input {
 
 
         self.keys = self.keys.iter_mut()
-            .filter_map(|(key, value)| {
-                match value {
-                    ButtonState::Depressed | ButtonState::Released => None,
-                    ButtonState::Pressed => Some((*key, ButtonState::Held(Instant::now()))),
-                    ButtonState::Held(t) | ButtonState::Echo(t) => Some((*key, ButtonState::Held(*t)))
-                }
+            .map(|(key, value)| {
+                (*key, value.advance_state())
             })
             .collect();
 
@@ -199,11 +200,7 @@ impl Input {
     pub fn is_key_pressed(&self, key: &KeyCode) -> bool {
 
         if let Some(button) = self.keys.get(key) {
-            use ButtonState::*;
-            match button {
-                Pressed | Echo(_) | Held(_) => true,
-                _ => false
-            }
+            button.is_pressed()
         } else {
             false
         }
@@ -240,27 +237,27 @@ impl Default for Input {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ButtonState {
-    Pressed,
+    Pressed(Instant),
     Echo(Instant),
     Held(Instant),
-    Released,
+    Released(Instant),
     Depressed
 }
 
 impl ButtonState {
-    fn advance_state(self) -> Self {
+    fn advance_state(mut self) -> Self {
         use ButtonState::*;
-        match self {
-            Pressed => Held(Instant::now()),
-            Released => Depressed,
-            _ => self
-        }
+        self = match self {
+            Depressed | Released(_) => Depressed,
+            Pressed(t) | Held(t) | Echo(t) => Held(t)
+        };
+        self
     }
 
     pub fn is_pressed(&self) -> bool {
         use ButtonState::*;
         match self {
-            Pressed | Echo(_) | Held(_) => true,
+            Pressed(_) | Echo(_) | Held(_) => true,
             _ => false
         }
     }
@@ -271,116 +268,119 @@ impl Display for ButtonState {
         use ButtonState::*;
 
         write!(f, "{}", match self {
-            Pressed => "P",
+            Pressed(_) => "P",
             Echo(_) => "E",
             Held(_) => "H",
-            Released => "R",
+            Released(_) => "R",
             Depressed => "D"
         })
     }
 }
 
-
-const fn get_keycode_name(key: KeyCode) -> Option<&'static str> {
+const fn get_keycode_name(key: KeyCode) -> Option<Key> {
     use KeyCode::*;
     Some(match key {
-        Backquote => "grave",
-        Backslash | IntlRo => "\\",
-        BracketLeft => "[",
-        BracketRight | IntlBackslash => "]",
-        Comma | NumpadComma => ",",
-        IntlYen => "¥",
+        Backquote => Key::Grave,
+        Backslash | IntlRo => Key::Backslash,
+        BracketLeft => Key::Bracketleft,
+        BracketRight | IntlBackslash => Key::Bracketright,
+        Comma | NumpadComma => Key::Comma,
+        IntlYen => Key::Yen,
 
-        Digit0 | Numpad0 => "0",
-        Digit1 | Numpad1 => "1",
-        Digit2 | Numpad2 => "2",
-        Digit3 | Numpad3 => "3",
-        Digit4 | Numpad4 => "4",
-        Digit5 | Numpad5 => "5",
-        Digit6 | Numpad6 => "6",
-        Digit7 | Numpad7 => "7",
-        Digit8 | Numpad8 => "8",
-        Digit9 | Numpad9 => "9",
+        Digit0 | Numpad0 => Key::N0,
+        Digit1 | Numpad1 => Key::N1,
+        Digit2 | Numpad2 => Key::N2,
+        Digit3 | Numpad3 => Key::N3,
+        Digit4 | Numpad4 => Key::N4,
+        Digit5 | Numpad5 => Key::N5,
+        Digit6 | Numpad6 => Key::N6,
+        Digit7 | Numpad7 => Key::N7,
+        Digit8 | Numpad8 => Key::N8,
+        Digit9 | Numpad9 => Key::N9,
 
-        Equal | NumpadEqual => "=",
+        Equal | NumpadEqual => Key::Equal,
 
-        KeyA => "a",
-        KeyB => "b",
-        KeyC => "c",
-        KeyD => "d",
-        KeyE => "e",
-        KeyF => "f",
-        KeyG => "g",
-        KeyH => "h",
-        KeyI => "i",
-        KeyJ => "j",
-        KeyK => "k",
-        KeyL => "l",
-        KeyM => "m",
-        KeyN => "n",
-        KeyO => "o",
-        KeyP => "p",
-        KeyQ => "q",
-        KeyR => "r",
-        KeyS => "s",
-        KeyT => "t",
-        KeyU => "u",
-        KeyV => "v",
-        KeyW => "w",
-        KeyX => "x",
-        KeyY => "y",
-        KeyZ => "z",
+        KeyA => Key::A,
+        KeyB => Key::B,
+        KeyC => Key::C,
+        KeyD => Key::D,
+        KeyE => Key::E,
+        KeyF => Key::F,
+        KeyG => Key::G,
+        KeyH => Key::H,
+        KeyI => Key::I,
+        KeyJ => Key::J,
+        KeyK => Key::K,
+        KeyL => Key::L,
+        KeyM => Key::M,
+        KeyN => Key::N,
+        KeyO => Key::O,
+        KeyP => Key::P,
+        KeyQ => Key::Q,
+        KeyR => Key::R,
+        KeyS => Key::S,
+        KeyT => Key::T,
+        KeyU => Key::U,
+        KeyV => Key::V,
+        KeyW => Key::W,
+        KeyX => Key::X,
+        KeyY => Key::Y,
+        KeyZ => Key::Z,
 
-        Minus | NumpadSubtract => "-",
-        Period | NumpadDecimal => ".",
-        Quote => "\"",
-        Semicolon => ";",
-        Slash | NumpadDivide => "/",
+        Minus | NumpadSubtract => Key::Minus,
+        Period | NumpadDecimal => Key::Period,
+        Quote => Key::Quote,
+        Semicolon => Key::Semicolon,
+        Slash | NumpadDivide => Key::Slash,
 
         // Skips Alts here
 
-        Backspace | NumpadBackspace => "backspace",
+        Backspace | NumpadBackspace => Key::Backspace,
         // Skips Caps Lock
-        ContextMenu => "menu",
+        ContextMenu => Key::Context,
         // Skips Controls here
-        Enter | NumpadEnter => "enter",
+        Enter | NumpadEnter => Key::Enter,
         // skips Super and Shift
-        Space => "space",
-        Tab => "tab",
+        Space => Key::Space,
+        Tab => Key::Tab,
         // Skips a few japanese exclusive keys here. Maybe ill add them later?
-        Delete => "delete",
-        End => "end",
-        Help => "help",
-        Home => "home",
-        Insert => "insert",
-        PageDown => "pagedown",
-        PageUp => "pageup",
-        ArrowDown => "arrowdown",
-        ArrowLeft => "arrowleft",
-        ArrowRight => "arrowright",
-        ArrowUp => "arrowup",
-        NumLock => "numlock",
+        Delete => Key::Delete,
+        End => Key::End,
+        Help => Key::Help,
+        Home => Key::Home,
+        Insert => Key::Insert,
+        PageDown => Key::Pagedown,
+        PageUp => Key::Pageup,
+        ArrowDown => Key::Arrowdown,
+        ArrowLeft => Key::Arrowleft,
+        ArrowRight => Key::Arrowright,
+        ArrowUp => Key::Arrowup,
+        NumLock => Key::Numlock,
 
         // numlock keys are paired with the number keys above
         // all numpad keys that dont have a pairing above are ignored :)
 
-        Escape => "escape",
+        Escape => Key::Escape,
         // Fn, Fnlock, Prtsc skipped
-        ScrollLock => "scrolllock",
+        ScrollLock => Key::Scrolllock,
 
         // Pause, browser commands, media keys and system keys skipped
-        F1 => "f1",
-        F2 => "f2",
-        F3 => "f3",
-        F4 => "f4",
-        F5 => "f5",
-        F6 => "f6",
-        F7 => "f7",
-        F8 => "f8",
-        F9 => "f9",
-        F10 => "f10",
-        F11 => "f11",
-        F12 => "f12",
+        F1 => Key::F1,
+        F2 => Key::F2,
+        F3 => Key::F3,
+        F4 => Key::F4,
+        F5 => Key::F5,
+        F6 => Key::F6,
+        F7 => Key::F7,
+        F8 => Key::F8,
+        F9 => Key::F9,
+        F10 => Key::F10,
+        F11 => Key::F11,
+        F12 => Key::F12,
+
+        ControlLeft | ControlRight => Key::Control,
+        AltLeft | AltRight => Key::Alt,
+        ShiftLeft | ShiftRight => Key::Shift,
 
         // last function keys skpped
 
@@ -390,90 +390,8 @@ const fn get_keycode_name(key: KeyCode) -> Option<&'static str> {
     })
 }
 
-const VALID_KEYS: [&'static str; 77] = [
-    "grave",
-    "\\",
-    "[",
-    "]",
-    ",",
-    "¥",
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
 
-    "=",
-
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r",
-    "s",
-    "t",
-    "u",
-    "v",
-    "w",
-    "x",
-    "y",
-    "z",
-
-    "-",
-    ".",
-    "\"",
-    ";",
-    "/",
-
-    "backspace",
-    "menu",
-    "enter",
-    "space",
-    "tab",
-    "delete",
-    "end",
-    "help",
-    "home",
-    "insert",
-    "pagedown",
-    "arrowleft",
-    "arrowright",
-    "arrowup",
-    "numlock",
-    "escape",
-    "scrolllock",
-    "f1",
-    "f2",
-    "f3",
-    "f4",
-    "f5",
-    "f6",
-    "f7",
-    "f8",
-    "f9",
-    "f10",
-    "f11",
-    "f12",
-];
-
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash)]
 pub enum Key {
     Grave,
     Backslash,

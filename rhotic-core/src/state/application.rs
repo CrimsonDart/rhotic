@@ -1,14 +1,14 @@
 use crate::{buffer::stage::*, display::font::FontManager, file::toml::Toml};
 
 
-use crate::{display::event_loop::Input, buffer::textstage::TextStage};
+use crate::{display::event_loop::Input, buffer::textstage::TextEdit};
 
 // A singeton that contains all data of the application.
 pub struct State {
     pub input: Input,
     pub is_focused: bool,
     pub font_manager: FontManager,
-    pub stage: TextStage,
+    pub stage: TextEdit,
 }
 
 impl State {
