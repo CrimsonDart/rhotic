@@ -153,7 +153,6 @@ impl<T: TextStage> Render<&mut FontManager> for T {
     }
 }
 
-
 fn layout(text: String, font_manager: &FontManager) -> Layout {
     let mut layout = Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
 

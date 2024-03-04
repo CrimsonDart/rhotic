@@ -1,5 +1,11 @@
+use std::error::Error;
 use std::fmt::{Formatter, Display};
-use std::ops::{Add, Index, IndexMut};
+use std::num::TryFromIntError;
+use std::ops::{Add, Index, IndexMut, Deref};
+use std::str::Chars;
+
+use anyhow::bail;
+use toml::Value;
 
 
 pub type Pixel = Point<u32>;
@@ -131,6 +137,148 @@ impl Default for Rgba {
         Self::new(0, 0, 0, 255)
     }
 }
+
+impl TryFrom<Value> for Rgba {
+    type Error = TomlToRgbaError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let out = match value {
+            Value::String(s) => Rgba::try_from(s.chars())?,
+            Value::Array(a) => {
+                let mut color: [u8; 4] = [0,0,0,255];
+                let mut iter = a.into_iter();
+                for i in 0..4 {
+                    if let Some(Value::Integer(int)) = iter.next() {
+                        color[i] = int.try_into()?;
+                    } else if i < 3 {
+                        return Err(TomlToRgbaError::IncorrectArrayType(i));
+                    }
+                }
+
+                Rgba::new(color[0], color[1], color[2], color[3])
+            },
+            _ => {
+                return Err(TomlToRgbaError::InvalidEntryType);
+            }
+        };
+        Ok(out)
+    }
+}
+
+pub enum TomlToRgbaError {
+    InsufficientStrLen(usize),
+    InvalidStr(String),
+    IncorrectArrayType(usize),
+    InvalidEntryType,
+    IntConversionFail
+}
+
+impl From<TryFromIntError> for TomlToRgbaError {
+    fn from(value: TryFromIntError) -> Self {
+        TomlToRgbaError::IntConversionFail
+    }
+}
+
+impl From<CharsToRgbaError> for TomlToRgbaError {
+    fn from(value: CharsToRgbaError) -> Self {
+        match value {
+            CharsToRgbaError::InvalidStr(s) => Self::InvalidStr(s),
+            CharsToRgbaError::InsufficientLength(len) => Self::InsufficientStrLen(len)
+        }
+    }
+}
+
+impl<'a> TryFrom<Chars<'a>> for Rgba {
+    type Error = CharsToRgbaError;
+
+    fn try_from(mut value: Chars) -> Result<Self, Self::Error> {
+        let num = {
+            let mut out = [0; 4];
+            for i in 0..4 {
+
+                let (left, right) = (value.next(), value.next());
+
+
+                if let (Some(n1), Some(n2)) = (left, right) {
+                    if let Some(n) = hex_code_to_u8([n1, n2]) {
+                        out[i] = n;
+                    } else if i != 3 {
+                        return Err(CharsToRgbaError::InvalidStr({
+                            let mut s = String::new();
+                            s.push(n1);
+                            s.push(n2);
+                            s
+                        }
+                        ));
+                    } else {
+                        out[3] = 0xFF;
+                    }
+                } else if i != 3 {
+                    let len = if left.is_some() {i * 2 + 1} else { i * 2 };
+
+                    return Err(CharsToRgbaError::InsufficientLength(len));
+                } else {
+                    out[3] = 0xFF;
+                }
+            }
+            out
+        };
+
+        Ok(Self::new(num[0], num[1], num[2], num[3]))
+    }
+}
+
+fn hex_code_to_u4(c: char) -> Option<u8> {
+    Some(match c {
+        '0' => 0,
+        '1' => 1,
+        '2' => 2,
+        '3' => 3,
+        '4' => 4,
+        '5' => 5,
+        '6' => 6,
+        '7' => 7,
+        '8' => 8,
+        '9' => 9,
+        'A' | 'a' => 10,
+        'B' | 'b' => 11,
+        'C' | 'c' => 12,
+        'D' | 'd' => 13,
+        'E' | 'e' => 14,
+        'F' | 'f' => 15,
+        _ => {
+            return None;
+        }
+    })
+}
+
+fn hex_code_to_u8(chars: [char; 2]) -> Option<u8> {
+    Some(hex_code_to_u4(chars[0])? * 16 + hex_code_to_u4(chars[1])?)
+}
+
+#[derive(Debug)]
+pub enum CharsToRgbaError {
+    InvalidStr(String),
+    InsufficientLength(usize)
+}
+
+impl Display for CharsToRgbaError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use CharsToRgbaError::*;
+
+        match self {
+            InsufficientLength(n) => {
+                write!(f, "Input iterator length was insufficient. Len was {n}, len requred is 6 or 8.")
+            },
+            InvalidStr(s) => {
+                write!(f, "{s} contians characters that are not compatiable with the hex codec, which is 0-9, or A-F.")
+            }
+        }
+    }
+}
+
+impl Error for CharsToRgbaError {}
+
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Point<T> {
