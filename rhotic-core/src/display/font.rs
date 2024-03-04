@@ -35,6 +35,56 @@ pub struct FontManager {
     pub back: Rgba,
 }
 
+/// Faces
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct Face {
+    pub fore: Rgba,
+    pub back: Rgba,
+    pub scale: f32,
+    pub style: Style,
+    pub underline: Underline,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Style {
+    None,
+    Bold,
+    Italic,
+    BoldItalic,
+    Oblique,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Underline {
+    None,
+    Normal(Rgba),
+    Squiggly(Rgba)
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Style::None
+    }
+}
+
+impl Default for Underline {
+    fn default() -> Self {
+        Underline::None
+    }
+}
+
+impl Default for Face {
+    fn default() -> Self {
+        Self {
+            fore: Rgba::WHITE,
+            back: Rgba::BLACK,
+            scale: 1.0,
+            style: Default::default(),
+            underline: Default::default()
+        }
+    }
+}
+
 impl FontManager {
     pub fn new() -> anyhow::Result<Self> {
         let fonts = vec![
