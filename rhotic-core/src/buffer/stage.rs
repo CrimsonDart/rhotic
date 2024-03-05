@@ -8,16 +8,20 @@ pub trait Stage where Self: Default {
     const NAME: &'static str;
 }
 
-pub trait Configurable where Self: Default + Stage {
+pub trait Configurable {
     fn configure(&mut self, config: Toml) -> anyhow::Result<()>;
     fn default_configuration() -> Toml;
     const CONFIG_FILE_NAME: &'static str;
 }
 
-pub trait Render<V = ()> where Self: Stage {
+pub trait Render<V = ()> {
     fn render(&self, canvas: &mut Canvas<&Window, &Window>, v: V);
 }
 
+pub trait TextStage where Self: Stage {
+    fn get_display_text(&self) -> String;
+    fn get_cursor(&self) -> (usize, usize, CursorLook);
+}
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum CursorLook {
@@ -25,11 +29,6 @@ pub enum CursorLook {
     HorizontalBar,
     Block,
     Box,
-}
-
-pub trait TextStage where Self: Stage {
-    fn get_display_text(&self) -> String;
-    fn get_cursor(&self) -> (usize, usize, CursorLook);
 }
 
 impl<T: TextStage> Render<&mut FontManager> for T {
