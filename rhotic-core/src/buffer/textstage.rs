@@ -6,10 +6,10 @@ use crate::display::{Rgba, font::FontManager};
 
 use super::{text_buffer::Page, stage::{Stage, TextStage}};
 
+use rhotic_macro::text_and_render;
+
+#[text_and_render]
 pub struct TextEdit {
-    pub page: Page,
-    x: usize,
-    y: usize,
     pub mode: Mode,
 }
 
@@ -50,8 +50,8 @@ impl Default for TextEdit {
     fn default() -> Self {
         Self {
             page: Default::default(),
-            x: 0,
-            y: 0,
+            cursor_x: 0,
+            cursor_y: 0,
             mode: Mode::Insert
         }
     }
@@ -88,21 +88,21 @@ impl TextEdit {
     // Forces the cursor in bounds of the text.
     fn validate_cursor(&mut self) {
 
-        if self.page.len() <= self.y {
-            self.y = self.page.len() - 1;
+        if self.page.len() <= self.cursor_y {
+            self.cursor_y = self.page.len() - 1;
         }
 
-        let c = self.page.get_line(self.y).unwrap().chars().count();
+        let c = self.page.get_line(self.cursor_y).unwrap().chars().count();
 
-        if c < self.x {
-            self.x = c;
+        if c < self.cursor_x {
+            self.cursor_x = c;
         }
     }
 
     pub fn move_cursor_left(&mut self) -> bool {
         self.validate_cursor();
-        if self.x != 0 {
-            self.x -= 1;
+        if self.cursor_x != 0 {
+            self.cursor_x -= 1;
             return true;
         }
         false

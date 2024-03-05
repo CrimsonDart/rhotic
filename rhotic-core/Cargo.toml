@@ -17,3 +17,4 @@ softbuffer = "0.4.1"
 num = "0.4.1"
 serde = "1.0.196"
 toml = "*"
+rhotic-macro = {path = "./../rhotic-macro"}
