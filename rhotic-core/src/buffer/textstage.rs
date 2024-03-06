@@ -37,7 +37,6 @@ impl Stage for TextEdit {
             self.input_text(input.text.as_str());
         }
 
-
         for (k, v) in input.keys.iter() {
 
         }
@@ -67,15 +66,15 @@ impl TextStage for TextEdit {
         use Mode::*;
         (
             {
-                let len = self.page.get_line(self.y).unwrap_or("").chars().count();
+                let len = self.page.get_line(self.cursor_y).unwrap_or("").chars().count();
 
-                if self.x > len {
+                if self.cursor_x > len {
                     len
                 } else {
-                    self.x
+                    self.cursor_x
                 }
             },
-            self.y,
+            self.cursor_y,
             match self.mode {
                 Insert => crate::buffer::stage::CursorLook::VerticalBar,
                 Command => crate::buffer::stage::CursorLook::Block
@@ -126,15 +125,15 @@ impl TextEdit {
             return self.move_cursor_left();
         }
 
-        if self.x != 0 {
-            self.x -= 1;
-            self.page.remove_char(self.y, self.x);
+        if self.cursor_x != 0 {
+            self.cursor_x -= 1;
+            self.page.remove_char(self.cursor_y, self.cursor_x);
 
-        } else if self.y != 0 {
-            let line = self.page.remove_line(self.y);
-            self.y -= 1;
-            self.x = self.page.get_line(self.y).unwrap_or("").chars().count();
-            self.page.push_str(self.y, line.as_str());
+        } else if self.cursor_y != 0 {
+            let line = self.page.remove_line(self.cursor_y);
+            self.cursor_y -= 1;
+            self.cursor_x = self.page.get_line(self.cursor_y).unwrap_or("").chars().count();
+            self.page.push_str(self.cursor_y, line.as_str());
         }
         true
     }
@@ -147,25 +146,25 @@ impl TextEdit {
                 match c {
                     '\u{8}' | '\u{1b}' => {},
                     '\r' | '\n' => {
-                        match self.page.insert_char(self.y, self.x, '\n') {
+                        match self.page.insert_char(self.cursor_y, self.cursor_x, '\n') {
                             Ok(_) => {},
                             Err(e) => {
                                 println!("{e}");
                                 return;
                             }
                         }
-                        self.y += 1;
-                        self.x = 0;
+                        self.cursor_y += 1;
+                        self.cursor_x = 0;
                     },
                     _  => {
-                        let res = self.page.insert_char(self.y, self.x, c);
+                        let res = self.page.insert_char(self.cursor_y, self.cursor_x, c);
                         match res {
                             Ok(_) => {},
                             Err(e) => {
                                 println!("{e}");
                             }
                         }
-                        self.x += 1;
+                        self.cursor_x += 1;
                     }
                 }
             }

@@ -2,7 +2,6 @@ use std::{error::Error, fmt::Display};
 
 use fontdue::layout::Layout;
 
-use crate::state::application::State;
 
 
 
