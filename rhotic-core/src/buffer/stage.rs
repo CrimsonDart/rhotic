@@ -3,7 +3,8 @@ use winit::window::Window;
 
 use crate::{display::{event_loop::Input, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}, file::toml::Toml, state::application::State};
 
-pub trait Stage where Self: Default {
+pub trait Stage<I = ()> where Self: Sized {
+    fn init(init_args: I) -> anyhow::Result<Self>;
     fn poll(&mut self, input: &Input) -> anyhow::Result<()>;
     const NAME: &'static str;
 }

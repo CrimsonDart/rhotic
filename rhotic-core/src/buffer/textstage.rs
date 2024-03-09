@@ -23,6 +23,15 @@ impl Stage for TextEdit {
 
     const NAME: &'static str = "Text Stage";
 
+    fn init(init_args: ()) -> anyhow::Result<Self> {
+        Ok(Self {
+            page: Default::default(),
+            cursor_x: 0,
+            cursor_y: 0,
+            mode: Mode::Insert
+        })
+    }
+
 
     fn poll(&mut self, input: &crate::display::event_loop::Input) -> anyhow::Result<()> {
 
@@ -42,17 +51,6 @@ impl Stage for TextEdit {
         }
 
         Ok(())
-    }
-}
-
-impl Default for TextEdit {
-    fn default() -> Self {
-        Self {
-            page: Default::default(),
-            cursor_x: 0,
-            cursor_y: 0,
-            mode: Mode::Insert
-        }
     }
 }
 

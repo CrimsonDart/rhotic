@@ -1,3 +1,4 @@
+use crate::dired::Dired;
 use crate::{buffer::stage::*, display::font::FontManager, file::toml::Toml};
 
 
@@ -8,7 +9,7 @@ pub struct State {
     pub input: Input,
     pub is_focused: bool,
     pub font_manager: FontManager,
-    pub stage: TextEdit,
+    pub stage: Dired,
 }
 
 impl State {
@@ -19,7 +20,7 @@ impl State {
             is_focused: false,
             font_manager: FontManager::new()?,
             input: Input::default(),
-            stage: Default::default(),
+            stage: Stage::init(())?,
         })
     }
 
