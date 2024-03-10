@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::dired::Dired;
 use crate::{buffer::stage::*, display::font::FontManager, file::toml::Toml};
 
@@ -20,7 +22,7 @@ impl State {
             is_focused: false,
             font_manager: FontManager::new()?,
             input: Input::default(),
-            stage: Stage::init(())?,
+            stage: Stage::init(PathBuf::new())?,
         })
     }
 

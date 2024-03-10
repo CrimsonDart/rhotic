@@ -1,12 +1,29 @@
 use fontdue::{layout::{Layout, TextStyle, GlyphPosition}, Metrics};
-use winit::window::Window;
+use winit::{window::Window, event::MouseScrollDelta};
 
-use crate::{display::{event_loop::Input, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}, file::toml::Toml, state::application::State};
+use crate::{display::{event_loop::{Input, Key}, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}, file::toml::Toml, state::application::State};
 
-pub trait Stage<I = ()> where Self: Sized {
-    fn init(init_args: I) -> anyhow::Result<Self>;
+pub trait Stage {
+    fn init(input: &[&str]) -> anyhow::Result<Self>;
     fn poll(&mut self, input: &Input) -> anyhow::Result<()>;
     const NAME: &'static str;
+}
+
+pub enum InEvent<'a> {
+    KeyPress(Key),
+    KeyOsEcho(Key),
+    KeyCustomEcho(Key),
+    KeyRelease(Key),
+    MousePress(usize),
+    MouseMove(usize, usize),
+    ScrollDelta(MouseScrollDelta),
+    Text(&'a str),
+    Command(&'a [&'a str])
+}
+
+pub enum StateCommand<'a> {
+    StartStage(&'a str),
+
 }
 
 pub trait Configurable {
@@ -19,7 +36,7 @@ pub trait Render<V = ()> {
     fn render(&self, canvas: &mut Canvas<&Window, &Window>, v: V);
 }
 
-pub trait TextStage where Self: Stage {
+pub trait TextStage {
     fn get_display_text(&self) -> String;
     fn get_cursor(&self) -> (usize, usize, CursorLook);
 }
@@ -153,7 +170,7 @@ impl<T: TextStage> Render<&mut FontManager> for T {
     }
 }
 
-fn layout(text: String, font_manager: &FontManager) -> Layout {
+pub fn layout(text: String, font_manager: &FontManager) -> Layout {
     let mut layout = Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
 
     let text = TextStyle {
@@ -166,7 +183,7 @@ fn layout(text: String, font_manager: &FontManager) -> Layout {
     layout
 }
 
-fn get_image<'a>(glyph: &GlyphPosition, font_manager: &'a mut FontManager) -> &'a (Metrics, MonoImage) {
+pub fn get_image<'a>(glyph: &GlyphPosition, font_manager: &'a mut FontManager) -> &'a (Metrics, MonoImage) {
 
     font_manager.cache.entry(glyph.key).or_insert({
         let (metrics, raster) = font_manager.fonts[0].rasterize_indexed(glyph.key.glyph_index, glyph.key.px);

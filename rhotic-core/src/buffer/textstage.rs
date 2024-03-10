@@ -19,7 +19,8 @@ pub enum Mode {
     Command
 }
 
-impl Stage for TextEdit {
+
+impl Stage<()> for TextEdit {
 
     const NAME: &'static str = "Text Stage";
 
