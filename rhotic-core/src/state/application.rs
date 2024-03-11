@@ -22,7 +22,7 @@ impl State {
             is_focused: false,
             font_manager: FontManager::new()?,
             input: Input::default(),
-            stage: Stage::init(PathBuf::new())?,
+            stage: Stage::init(["/"].as_slice())?,
         })
     }
 

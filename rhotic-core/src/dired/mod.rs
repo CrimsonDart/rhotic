@@ -1,11 +1,9 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
+use anyhow::bail;
 use rhotic_macro::text_and_render;
 
 use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image}}, display::{font::FontManager, Rgba, image::MonoImage}};
-
-
-
 
 pub struct Dired {
     path: PathBuf,
@@ -13,11 +11,18 @@ pub struct Dired {
     cursor: usize,
 }
 
-impl Stage<PathBuf> for Dired {
+impl Stage for Dired {
 
-    fn init(init_args: PathBuf) -> anyhow::Result<Self> {
+    fn init(init_args: &[&str]) -> anyhow::Result<Self> {
+
+        let path_buf = if let Some(path) = init_args.get(0) {
+            PathBuf::from_str(path)?
+        } else {
+            return bail!("Tried to open Dired without a path. A path is needed!");
+        };
+
         Ok(Self {
-            path: init_args,
+            path: path_buf,
             page: Default::default(),
             cursor: 0
         })

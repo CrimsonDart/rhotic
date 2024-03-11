@@ -3,7 +3,7 @@ use winit::{window::Window, event::MouseScrollDelta};
 
 use crate::{display::{event_loop::{Input, Key}, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}, file::toml::Toml, state::application::State};
 
-pub trait Stage {
+pub trait Stage where Self: Sized {
     fn init(input: &[&str]) -> anyhow::Result<Self>;
     fn poll(&mut self, input: &Input) -> anyhow::Result<()>;
     const NAME: &'static str;

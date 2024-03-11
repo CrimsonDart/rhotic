@@ -20,11 +20,11 @@ pub enum Mode {
 }
 
 
-impl Stage<()> for TextEdit {
+impl Stage for TextEdit {
 
     const NAME: &'static str = "Text Stage";
 
-    fn init(init_args: ()) -> anyhow::Result<Self> {
+    fn init(_init_args: &[&str]) -> anyhow::Result<Self> {
         Ok(Self {
             page: Default::default(),
             cursor_x: 0,
