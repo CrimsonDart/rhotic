@@ -34,8 +34,8 @@ impl Stage for Dired {
 
 
 
-
         Ok(())
+
     }
 
     const NAME: &'static str = "Dired";

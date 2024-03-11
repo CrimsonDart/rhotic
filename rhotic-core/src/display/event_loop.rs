@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, fmt::{Display, Debug}, time::Instant, collections::HashMap};
+use std::{num::NonZeroU32, fmt::{Display, Debug}, time::Instant, collections::HashMap, ops::IndexMut};
 use softbuffer::{Context, Surface, Buffer};
 use winit::{
     window::{WindowBuilder, Window},
@@ -277,6 +277,25 @@ impl Display for ButtonState {
     }
 }
 
+pub struct KeyPress {
+    array: [ButtonState; 82]
+}
+
+impl KeyPress {
+    fn new() -> Self {
+        Self {
+            array: [ButtonState::Depressed; 82]
+        }
+    }
+}
+
+impl std::ops::Index<Key> for KeyPress {
+    type Output = ButtonState;
+    fn index(&self, index: Key) -> &Self::Output {
+        &self.array[index as usize]
+    }
+}
+
 const fn get_keycode_name(key: KeyCode) -> Option<Key> {
     use KeyCode::*;
     Some(match key {
@@ -390,7 +409,6 @@ const fn get_keycode_name(key: KeyCode) -> Option<Key> {
     })
 }
 
-
 #[derive(PartialEq, Eq, Debug, Copy, Clone, Hash)]
 pub enum Key {
     Grave,
@@ -399,7 +417,6 @@ pub enum Key {
     Bracketright,
     Comma,
     Yen,
-
     N0,
     N1,
     N2,
@@ -410,9 +427,7 @@ pub enum Key {
     N7,
     N8,
     N9,
-
     Equal,
-
     A,
     B,
     C,
@@ -439,13 +454,11 @@ pub enum Key {
     X,
     Y,
     Z,
-
     Minus,
     Period,
     Quote,
     Semicolon,
     Slash,
-
     Backspace,
     Context,
     Enter,
@@ -465,7 +478,6 @@ pub enum Key {
     Numlock,
     Escape,
     Scrolllock,
-
     F1,
     F2,
     F3,
@@ -478,7 +490,6 @@ pub enum Key {
     F10,
     F11,
     F12,
-
     Control,
     Shift,
     Alt
