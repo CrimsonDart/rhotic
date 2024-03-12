@@ -212,6 +212,10 @@ impl Page {
         Some(out)
     }
 
+    pub fn clear(&mut self) {
+        self.text.clear()
+    }
+
     pub fn as_string(&self) -> String {
         let mut s = String::new();
 

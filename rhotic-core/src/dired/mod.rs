@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, ffi::{OsStr, OsString}};
 
 use anyhow::bail;
 use rhotic_macro::text_and_render;
@@ -9,33 +9,73 @@ pub struct Dired {
     path: PathBuf,
     page: Page,
     cursor: usize,
+    files: Vec<OsString>,
+}
+
+impl Dired {
+    fn read_dir(&mut self) -> anyhow::Result<()> {
+
+        let dir = self.path.read_dir()?;
+
+        let vec: Vec<_> = dir.map(|x| {
+
+            if let Ok(s) = x {
+                s.file_name()
+            } else {
+                OsString::from("-- failed to display --")
+            }
+
+        }).collect();
+
+        self.files = vec;
+        self.page.clear();
+
+        for string in self.files.iter() {
+
+            self.page.push_line(if let Some(s) = string.to_str() {
+                s
+            } else {
+                "-- failed to convert --"
+            });
+        }
+
+        Ok(())
+    }
 }
 
 impl Stage for Dired {
 
     fn init(init_args: &[&str]) -> anyhow::Result<Self> {
 
-        let path_buf = if let Some(path) = init_args.get(0) {
+        let mut path_buf = if let Some(path) = init_args.get(0) {
             PathBuf::from_str(path)?
         } else {
-            return bail!("Tried to open Dired without a path. A path is needed!");
+            bail!("Tried to open Dired without a path. A path is needed!")
         };
+
+        if !path_buf.is_dir() {
+            path_buf.pop();
+        }
+
+        if !path_buf.is_dir() {
+            bail!("Failed to open Dired; Can only open with a Directory path!")
+        }
 
         Ok(Self {
             path: path_buf,
             page: Default::default(),
-            cursor: 0
+            cursor: 0,
+            files: Vec::new()
         })
     }
 
     fn poll(&mut self, input: &crate::display::event_loop::Input) -> anyhow::Result<()> {
 
-
+        self.read_dir()?;
 
 
 
         Ok(())
-
     }
 
     const NAME: &'static str = "Dired";
@@ -44,7 +84,9 @@ impl Stage for Dired {
 impl Render<&mut FontManager> for Dired {
     fn render(&self, canvas: &mut crate::display::text_render::Canvas<&winit::window::Window, &winit::window::Window>, v: &mut FontManager) {
 
-        let layout = layout("line 1\nline 2".into(), v);
+
+
+        let layout = layout(self.page.as_string(), v);
         let glyphs = layout.glyphs();
         let (mut gx, mut gy) = (0,0);
         let cursor = self.cursor;
