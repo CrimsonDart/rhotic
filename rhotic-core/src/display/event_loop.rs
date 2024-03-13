@@ -1,4 +1,5 @@
 use std::{num::NonZeroU32, fmt::{Display, Debug}, time::Instant, collections::HashMap, ops::IndexMut};
+use enum_iterator::{Sequence, all};
 use softbuffer::{Context, Surface, Buffer};
 use winit::{
     window::{WindowBuilder, Window},
@@ -92,24 +93,26 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                         use winit::event::MouseButton::*;
                         use ButtonState::*;
 
-                        let buf = &mut match button {
+                        let buf = match button {
                             Left => {
-                                state.input.m1
+                                Key::M1
                             },
                             Right => {
-                                state.input.m2
+                                Key::M2
                             },
                             Middle => {
-                                state.input.m3
+                                Key::M3
                             },
                             _ => { return; }
                         };
 
-                        if pressed == ElementState::Pressed {
-                            *buf = ButtonState::Pressed(Instant::now());
-                        } else if let Pressed(t) | Held(t) | Echo(t) | Released(t) = *buf {
-                            *buf = Released(t);
-                        }
+                        state.input[buf] = if pressed == ElementState::Pressed {
+                            Pressed(Instant::now())
+                        } else if let Pressed(t) | Held(t) | Echo(t) | Released(t) = state.input[buf] {
+                            Released(t)
+                        } else {
+                            Depressed
+                        };
 
                         window.request_redraw();
                     },
@@ -120,7 +123,6 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                                 state.input.text.push_str(s);
                             }
                         }
-
 
                         let key = if let PhysicalKey::Code(k) = event.physical_key {
                             k
@@ -136,23 +138,22 @@ pub fn start_event_loop() -> anyhow::Result<()> {
 
                         if event.state == ElementState::Pressed {
                             if event.repeat {
-                                state.input.keys.entry(key).and_modify(|x| {
-                                    if let ButtonState::Held(t) = *x {
-                                        *x = ButtonState::Echo(t)
-                                    }
-                                })
-                                .or_insert(ButtonState::Pressed(Instant::now()));
-                                return;
+                                if let ButtonState::Held(t) = state.input[key] {
+                                    state.input[key] = ButtonState::Echo(t);
+                                    return;
+                                }
                             }
-                            state.input.keys.insert(key, ButtonState::Pressed(Instant::now()));
+                            state.input[key] = ButtonState::Pressed(Instant::now());
                             return;
                         }
-                        state.input.keys.entry(key).and_modify(|x| {
-                            use ButtonState::*;
-                            if let Pressed(t) | Held(t) | Echo(t) | Released(t) = x {
-                                *x = Released(*t)
+
+                        state.input[key] = match state.input[key] {
+                            ButtonState::Depressed => ButtonState::Depressed,
+                            ButtonState::Echo(t) | ButtonState::Held(t) | ButtonState::Pressed(t) | ButtonState::Released(t) => {
+                                ButtonState::Released(t)
                             }
-                        });
+                        };
+                        window.request_redraw();
                     },
                     _ => {}
                 }
@@ -167,61 +168,42 @@ pub fn start_event_loop() -> anyhow::Result<()> {
 pub struct Input {
     pub mouse_position: Pixel,
     pub scroll_delta: Option<MouseScrollDelta>,
+    pub array: [ButtonState; 85],
 
-    pub m1: ButtonState,
-    pub m2: ButtonState,
-    pub m3: ButtonState,
-
-    pub keys: HashMap<Key, ButtonState>,
     pub text: String,
 }
 
 impl Input {
     pub fn advance_state(&mut self) {
 
+        for i in 0..self.array.len() {
+            self.array[i] = self.array[i].advance_state();
+        }
+
         self.scroll_delta = None;
-
-        self.m1 = self.m1.advance_state();
-        self.m2 = self.m2.advance_state();
-        self.m3 = self.m3.advance_state();
-
-
-        self.keys = self.keys.iter_mut()
-            .map(|(key, value)| {
-                (*key, value.advance_state())
-            })
-            .collect();
-
         self.text = String::new();
     }
 
     pub fn get_pressed_keys(&self) -> Vec<Key> {
         let mut out = Vec::new();
 
-        for (k, b) in self.keys.iter() {
-            if b.is_pressed() {
-                out.push(k.clone());
+        for i in all::<Key>() {
+            if self.array[i as usize].is_pressed() {
+                out.push(i);
             }
         }
 
         out
     }
 
-    pub fn is_key_pressed(&self, key: &Key) -> bool {
-
-        if let Some(button) = self.keys.get(key) {
-            button.is_pressed()
-        } else {
-            false
-        }
+    pub fn is_key_pressed(&self, key: Key) -> bool {
+        self.array[key as usize].is_pressed()
     }
 
     pub fn is_any_key_pressed(&self, keys: &[Key]) -> bool {
         for key in keys {
-            if self.is_key_pressed(key) {
+            if self.array[*key as usize].is_pressed() {
                 return true;
-            } else {
-                continue;
             }
         }
         false
@@ -235,13 +217,22 @@ impl Default for Input {
         Self {
             mouse_position: Point::new(0, 0),
             scroll_delta: None,
-            m1: Depressed,
-            m2: Depressed,
-            m3: Depressed,
-
-            keys: HashMap::new(),
+            array: [Depressed; 85],
             text: String::new()
         }
+    }
+}
+
+impl std::ops::Index<Key> for Input {
+    type Output = ButtonState;
+    fn index(&self, index: Key) -> &Self::Output {
+        &self.array[index as usize]
+    }
+}
+
+impl std::ops::IndexMut<Key> for Input {
+    fn index_mut(&mut self, index: Key) -> &mut Self::Output {
+        &mut self.array[index as usize]
     }
 }
 
@@ -287,24 +278,6 @@ impl Display for ButtonState {
     }
 }
 
-pub struct KeyPress {
-    array: [ButtonState; 82]
-}
-
-impl KeyPress {
-    fn new() -> Self {
-        Self {
-            array: [ButtonState::Depressed; 82]
-        }
-    }
-}
-
-impl std::ops::Index<Key> for KeyPress {
-    type Output = ButtonState;
-    fn index(&self, index: Key) -> &Self::Output {
-        &self.array[index as usize]
-    }
-}
 
 const fn get_keycode_name(key: KeyCode) -> Option<Key> {
     use KeyCode::*;
@@ -419,7 +392,7 @@ const fn get_keycode_name(key: KeyCode) -> Option<Key> {
     })
 }
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash, Sequence)]
 pub enum Key {
     Grave,
     Backslash,
@@ -502,5 +475,8 @@ pub enum Key {
     F12,
     Control,
     Shift,
-    Alt
+    Alt,
+    M1,
+    M2,
+    M3
 }

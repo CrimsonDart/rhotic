@@ -45,10 +45,6 @@ impl Stage for TextEdit {
             self.input_text(input.text.as_str());
         }
 
-        for (k, v) in input.keys.iter() {
-
-        }
-
         Ok(())
     }
 }

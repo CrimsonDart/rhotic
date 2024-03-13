@@ -75,19 +75,17 @@ impl Stage for Dired {
 
         self.read_dir()?;
 
-
-        if let Some(&crate::display::event_loop::ButtonState::Pressed(_)) = input.keys.get(&Key::Arrowdown) {
+        if let ButtonState::Pressed(_) = input[Key::Arrowdown] {
             if self.cursor != self.files.len() - 1 {
                 self.cursor += 1;
             }
         }
 
-        if let Some(ButtonState::Pressed(_)) = input.keys.get(&Key::Arrowup) {
+        if let ButtonState::Pressed(_) = input[Key::Arrowup] {
             if self.cursor != 0 {
                 self.cursor -= 1;
             }
         }
-
 
         Ok(())
     }
@@ -97,8 +95,6 @@ impl Stage for Dired {
 
 impl Render<&mut FontManager> for Dired {
     fn render(&self, canvas: &mut crate::display::text_render::Canvas<&winit::window::Window, &winit::window::Window>, v: &mut FontManager) {
-
-
 
         let layout = layout(self.page.as_string(), v);
         let glyphs = layout.glyphs();
@@ -145,8 +141,6 @@ impl Render<&mut FontManager> for Dired {
                 line_background_color,
                 Rgba::WHITE
             );
-
         }
-
     }
 }
