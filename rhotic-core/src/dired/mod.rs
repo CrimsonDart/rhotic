@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr, ffi::{OsStr, OsString}};
 use anyhow::bail;
 use rhotic_macro::text_and_render;
 
-use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image}}, display::{font::FontManager, Rgba, image::MonoImage}};
+use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image}}, display::{font::FontManager, Rgba, image::MonoImage, event_loop::{Key, ButtonState}}};
 
 pub struct Dired {
     path: PathBuf,
@@ -17,7 +17,7 @@ impl Dired {
 
         let dir = self.path.read_dir()?;
 
-        let vec: Vec<_> = dir.map(|x| {
+        let mut vec: Vec<_> = dir.map(|x| {
 
             if let Ok(s) = x {
                 s.file_name()
@@ -26,6 +26,8 @@ impl Dired {
             }
 
         }).collect();
+
+        vec.sort();
 
         self.files = vec;
         self.page.clear();
@@ -73,6 +75,18 @@ impl Stage for Dired {
 
         self.read_dir()?;
 
+
+        if let Some(&crate::display::event_loop::ButtonState::Pressed(_)) = input.keys.get(&Key::Arrowdown) {
+            if self.cursor != self.files.len() - 1 {
+                self.cursor += 1;
+            }
+        }
+
+        if let Some(ButtonState::Pressed(_)) = input.keys.get(&Key::Arrowup) {
+            if self.cursor != 0 {
+                self.cursor -= 1;
+            }
+        }
 
 
         Ok(())

@@ -22,7 +22,7 @@ impl State {
             is_focused: false,
             font_manager: FontManager::new()?,
             input: Input::default(),
-            stage: Stage::init(["/home/james"].as_slice())?,
+            stage: Stage::init(["/home/james/Library"].as_slice())?,
         })
     }
 

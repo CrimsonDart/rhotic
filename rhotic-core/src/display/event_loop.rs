@@ -121,28 +121,38 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                             }
                         }
 
-                        if let PhysicalKey::Code(code) = event.physical_key {
-                            if event.state == ElementState::Pressed {
-                                if event.repeat {
-                                    state.input.keys.entry(code).and_modify(|x| {
-                                        if let ButtonState::Held(t) = *x {
-                                            *x = ButtonState::Echo(t)
-                                        }
-                                    })
-                                    .or_insert(ButtonState::Pressed(Instant::now()));
-                                    return;
-                                }
-                                state.input.keys.insert(code, ButtonState::Pressed(Instant::now()));
+
+                        let key = if let PhysicalKey::Code(k) = event.physical_key {
+                            k
+                        } else {
+                            return;
+                        };
+
+                        let key = if let Some(k) = get_keycode_name(key) {
+                            k
+                        } else {
+                            return;
+                        };
+
+                        if event.state == ElementState::Pressed {
+                            if event.repeat {
+                                state.input.keys.entry(key).and_modify(|x| {
+                                    if let ButtonState::Held(t) = *x {
+                                        *x = ButtonState::Echo(t)
+                                    }
+                                })
+                                .or_insert(ButtonState::Pressed(Instant::now()));
                                 return;
                             }
-
-                            state.input.keys.entry(code).and_modify(|x| {
-                                use ButtonState::*;
-                                if let Pressed(t) | Held(t) | Echo(t) | Released(t) = x {
-                                    *x = Released(*t)
-                                }
-                            });
+                            state.input.keys.insert(key, ButtonState::Pressed(Instant::now()));
+                            return;
                         }
+                        state.input.keys.entry(key).and_modify(|x| {
+                            use ButtonState::*;
+                            if let Pressed(t) | Held(t) | Echo(t) | Released(t) = x {
+                                *x = Released(*t)
+                            }
+                        });
                     },
                     _ => {}
                 }
@@ -162,7 +172,7 @@ pub struct Input {
     pub m2: ButtonState,
     pub m3: ButtonState,
 
-    pub keys: HashMap<KeyCode, ButtonState>,
+    pub keys: HashMap<Key, ButtonState>,
     pub text: String,
 }
 
@@ -185,7 +195,7 @@ impl Input {
         self.text = String::new();
     }
 
-    pub fn get_pressed_keys(&self) -> Vec<KeyCode> {
+    pub fn get_pressed_keys(&self) -> Vec<Key> {
         let mut out = Vec::new();
 
         for (k, b) in self.keys.iter() {
@@ -197,7 +207,7 @@ impl Input {
         out
     }
 
-    pub fn is_key_pressed(&self, key: &KeyCode) -> bool {
+    pub fn is_key_pressed(&self, key: &Key) -> bool {
 
         if let Some(button) = self.keys.get(key) {
             button.is_pressed()
@@ -206,7 +216,7 @@ impl Input {
         }
     }
 
-    pub fn is_any_key_pressed(&self, keys: &[KeyCode]) -> bool {
+    pub fn is_any_key_pressed(&self, keys: &[Key]) -> bool {
         for key in keys {
             if self.is_key_pressed(key) {
                 return true;

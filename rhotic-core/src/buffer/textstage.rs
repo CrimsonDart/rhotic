@@ -2,7 +2,7 @@ use std::{collections::HashMap, cell::OnceCell, sync::OnceLock};
 
 use winit::keyboard::KeyCode;
 
-use crate::display::{Rgba, font::FontManager};
+use crate::display::{Rgba, font::FontManager, event_loop::Key};
 
 use super::{text_buffer::Page, stage::{Stage, TextStage}};
 
@@ -38,10 +38,8 @@ impl Stage for TextEdit {
 
         if !input.text.is_empty() && !input.is_any_key_pressed(
             &[
-                KeyCode::AltLeft,
-                KeyCode::AltRight,
-                KeyCode::ControlLeft,
-                KeyCode::ControlRight
+                Key::Alt,
+                Key::Control
             ]
         ) {
             self.input_text(input.text.as_str());
