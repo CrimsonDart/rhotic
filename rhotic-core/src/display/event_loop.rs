@@ -5,7 +5,7 @@ use winit::{
     window::{WindowBuilder, Window},
     event_loop::EventLoop, event::{MouseScrollDelta, ElementState}, dpi::PhysicalSize, keyboard::{PhysicalKey, KeyCode}};
 
-use crate::state::application::State;
+use crate::{state::application::State, buffer::stage::InputEvent};
 
 use super::{render, Point, types::Pixel};
 
@@ -32,11 +32,6 @@ pub fn start_event_loop() -> anyhow::Result<()> {
 
         use winit::event::Event::*;
         match event {
-
-            AboutToWait => {
-                state.advance();
-                window.request_redraw();
-            },
 
             WindowEvent {
                 window_id,
@@ -84,14 +79,13 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                     },
 
                     MouseWheel { device_id: _, delta, phase: _} => {
-                        state.input.scroll_delta = Some(delta);
+                        state.send_event(InputEvent::Scroll(delta));
                         window.request_redraw();
                     },
 
                     MouseInput { device_id: _, state: pressed, button } => {
 
                         use winit::event::MouseButton::*;
-                        use ButtonState::*;
 
                         let buf = match button {
                             Left => {
@@ -106,13 +100,13 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                             _ => { return; }
                         };
 
-                        state.input[buf] = if pressed == ElementState::Pressed {
-                            Pressed(Instant::now())
-                        } else if let Pressed(t) | Held(t) | Echo(t) | Released(t) = state.input[buf] {
-                            Released(t)
+                        if pressed == ElementState::Pressed {
+                            state.send_event(InputEvent::Press(buf));
                         } else {
-                            Depressed
-                        };
+                            state.send_event(InputEvent::Release(buf));
+                        }
+
+                        state.input[buf] = pressed == ElementState::Pressed;
 
                         window.request_redraw();
                     },
@@ -120,7 +114,7 @@ pub fn start_event_loop() -> anyhow::Result<()> {
 
                         if event.state == ElementState::Pressed {
                             if let Some(s) = event.logical_key.to_text() {
-                                state.input.text.push_str(s);
+                                //TODO
                             }
                         }
 
@@ -136,23 +130,20 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                             return;
                         };
 
-                        if event.state == ElementState::Pressed {
+                        let send_event = if event.state == ElementState::Pressed {
+                            state.input[key] = true;
                             if event.repeat {
-                                if let ButtonState::Held(t) = state.input[key] {
-                                    state.input[key] = ButtonState::Echo(t);
-                                    return;
-                                }
+                                InputEvent::Echo(key)
+                            } else {
+                                InputEvent::Press(key)
                             }
-                            state.input[key] = ButtonState::Pressed(Instant::now());
-                            return;
-                        }
-
-                        state.input[key] = match state.input[key] {
-                            ButtonState::Depressed => ButtonState::Depressed,
-                            ButtonState::Echo(t) | ButtonState::Held(t) | ButtonState::Pressed(t) | ButtonState::Released(t) => {
-                                ButtonState::Released(t)
-                            }
+                        } else {
+                            state.input[key] = false;
+                            InputEvent::Release(key)
                         };
+
+                        state.send_event(send_event);
+
                         window.request_redraw();
                     },
                     _ => {}
@@ -167,64 +158,35 @@ pub fn start_event_loop() -> anyhow::Result<()> {
 #[derive(PartialEq, Debug)]
 pub struct Input {
     pub mouse_position: Pixel,
-    pub scroll_delta: Option<MouseScrollDelta>,
-    pub array: [ButtonState; 85],
-
-    pub text: String,
+    pub array: [bool; 85],
 }
 
 impl Input {
-    pub fn advance_state(&mut self) {
-
-        for i in 0..self.array.len() {
-            self.array[i] = self.array[i].advance_state();
-        }
-
-        self.scroll_delta = None;
-        self.text = String::new();
-    }
-
     pub fn get_pressed_keys(&self) -> Vec<Key> {
         let mut out = Vec::new();
 
         for i in all::<Key>() {
-            if self.array[i as usize].is_pressed() {
+            if self.array[i as usize] {
                 out.push(i);
             }
         }
 
         out
     }
-
-    pub fn is_key_pressed(&self, key: Key) -> bool {
-        self.array[key as usize].is_pressed()
-    }
-
-    pub fn is_any_key_pressed(&self, keys: &[Key]) -> bool {
-        for key in keys {
-            if self.array[*key as usize].is_pressed() {
-                return true;
-            }
-        }
-        false
-    }
 }
 
 impl Default for Input {
     fn default() -> Self {
-        use ButtonState::*;
 
         Self {
             mouse_position: Point::new(0, 0),
-            scroll_delta: None,
-            array: [Depressed; 85],
-            text: String::new()
+            array: [false; 85],
         }
     }
 }
 
 impl std::ops::Index<Key> for Input {
-    type Output = ButtonState;
+    type Output = bool;
     fn index(&self, index: Key) -> &Self::Output {
         &self.array[index as usize]
     }
@@ -235,49 +197,6 @@ impl std::ops::IndexMut<Key> for Input {
         &mut self.array[index as usize]
     }
 }
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ButtonState {
-    Pressed(Instant),
-    Echo(Instant),
-    Held(Instant),
-    Released(Instant),
-    Depressed
-}
-
-impl ButtonState {
-    fn advance_state(mut self) -> Self {
-        use ButtonState::*;
-        self = match self {
-            Depressed | Released(_) => Depressed,
-            Pressed(t) | Held(t) | Echo(t) => Held(t)
-        };
-        self
-    }
-
-    pub fn is_pressed(&self) -> bool {
-        use ButtonState::*;
-        match self {
-            Pressed(_) | Echo(_) | Held(_) => true,
-            _ => false
-        }
-    }
-}
-
-impl Display for ButtonState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ButtonState::*;
-
-        write!(f, "{}", match self {
-            Pressed(_) => "P",
-            Echo(_) => "E",
-            Held(_) => "H",
-            Released(_) => "R",
-            Depressed => "D"
-        })
-    }
-}
-
 
 const fn get_keycode_name(key: KeyCode) -> Option<Key> {
     use KeyCode::*;

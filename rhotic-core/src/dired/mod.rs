@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr, ffi::{OsStr, OsString}};
 use anyhow::bail;
 use rhotic_macro::text_and_render;
 
-use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image}}, display::{font::FontManager, Rgba, image::MonoImage, event_loop::{Key, ButtonState}}};
+use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image, InputEvent, StateCommand}}, display::{font::FontManager, Rgba, image::MonoImage, event_loop::{Key}}};
 
 pub struct Dired {
     path: PathBuf,
@@ -62,32 +62,41 @@ impl Stage for Dired {
         if !path_buf.is_dir() {
             bail!("Failed to open Dired; Can only open with a Directory path!")
         }
-
-        Ok(Self {
+        let mut buf = Self {
             path: path_buf,
             page: Default::default(),
             cursor: 0,
             files: Vec::new()
-        })
+        };
+
+        buf.read_dir()?;
+
+        Ok(buf)
     }
 
-    fn poll(&mut self, input: &crate::display::event_loop::Input) -> anyhow::Result<()> {
+    fn send_event(&mut self, input: InputEvent) -> StateCommand {
 
-        self.read_dir()?;
+        use Key::*;
+        use InputEvent::*;
 
-        if let ButtonState::Pressed(_) = input[Key::Arrowdown] {
-            if self.cursor != self.files.len() - 1 {
-                self.cursor += 1;
-            }
+        self.read_dir();
+
+        match input {
+            Press(k) | Echo(k) => match k {
+                Arrowdown => if self.cursor != self.files.len() - 1 {
+                    self.cursor += 1;
+                },
+                Arrowup => if self.cursor != 0 {
+                    self.cursor -= 1;
+                },
+                _ => {}
+            },
+            Text(t) => {
+
+            },
+            _ => {}
         }
-
-        if let ButtonState::Pressed(_) = input[Key::Arrowup] {
-            if self.cursor != 0 {
-                self.cursor -= 1;
-            }
-        }
-
-        Ok(())
+        StateCommand::None
     }
 
     const NAME: &'static str = "Dired";

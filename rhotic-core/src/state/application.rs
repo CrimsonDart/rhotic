@@ -26,14 +26,13 @@ impl State {
         })
     }
 
-    pub fn advance(&mut self) {
+    pub fn send_event(&mut self, event: InputEvent) {
 
-        let result = self.stage.poll(&self.input);
+        use StateCommand::*;
 
-        if let Err(e) = result {
-            println!("{e}");
+        match self.stage.send_event(event) {
+            StartStage(c) => {},
+            None => {}
         }
-
-        self.input.advance_state();
     }
 }

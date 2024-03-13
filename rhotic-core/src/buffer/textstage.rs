@@ -4,7 +4,7 @@ use winit::keyboard::KeyCode;
 
 use crate::display::{Rgba, font::FontManager, event_loop::Key};
 
-use super::{text_buffer::Page, stage::{Stage, TextStage}};
+use super::{text_buffer::Page, stage::{Stage, TextStage, InputEvent, StateCommand}};
 
 use rhotic_macro::text_and_render;
 
@@ -34,18 +34,8 @@ impl Stage for TextEdit {
     }
 
 
-    fn poll(&mut self, input: &crate::display::event_loop::Input) -> anyhow::Result<()> {
-
-        if !input.text.is_empty() && !input.is_any_key_pressed(
-            &[
-                Key::Alt,
-                Key::Control
-            ]
-        ) {
-            self.input_text(input.text.as_str());
-        }
-
-        Ok(())
+    fn send_event(&mut self, input: InputEvent) -> StateCommand {
+        StateCommand::None
     }
 }
 

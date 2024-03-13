@@ -1,29 +1,34 @@
 use fontdue::{layout::{Layout, TextStyle, GlyphPosition}, Metrics};
-use winit::{window::Window, event::MouseScrollDelta};
+use winit::{window::Window, event::MouseScrollDelta, keyboard::SmolStr};
 
 use crate::{display::{event_loop::{Input, Key}, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}, file::toml::Toml, state::application::State};
 
 pub trait Stage where Self: Sized {
     fn init(input: &[&str]) -> anyhow::Result<Self>;
-    fn poll(&mut self, input: &Input) -> anyhow::Result<()>;
+    fn send_event(&mut self, input: InputEvent) -> StateCommand;
     const NAME: &'static str;
 }
 
-pub enum InEvent<'a> {
-    KeyPress(Key),
-    KeyOsEcho(Key),
-    KeyCustomEcho(Key),
-    KeyRelease(Key),
-    MousePress(usize),
+pub enum InputEvent<'a> {
+    Press(Key),
+    Echo(Key),
+    Release(Key),
     MouseMove(usize, usize),
-    ScrollDelta(MouseScrollDelta),
-    Text(&'a str),
+    Scroll(MouseScrollDelta),
+    Text(SmolStr),
     Command(&'a [&'a str])
 }
 
-pub enum StateCommand<'a> {
-    StartStage(&'a str),
+pub enum StateCommand {
+    StartStage(String),
+    None,
+    // Add log command?
+}
 
+impl<T> From<Option<T>> for StateCommand {
+    fn from(value: Option<T>) -> Self {
+        StateCommand::None
+    }
 }
 
 pub trait Configurable {
