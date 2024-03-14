@@ -9,7 +9,7 @@ use image::{self, ImageDecoder, ImageError};
 
 
 
-use super::{Rgba, Point};
+use super::{Rgba};
 
 
 fn load_png(path: &str) -> Result<ImageHandle, ImageError> {

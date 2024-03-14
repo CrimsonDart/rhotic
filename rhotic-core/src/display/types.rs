@@ -1,10 +1,10 @@
 use std::error::Error;
 use std::fmt::{Formatter, Display};
 use std::num::TryFromIntError;
-use std::ops::{Add, Index, IndexMut, Deref};
+use std::ops::{Add, Index, IndexMut};
 use std::str::Chars;
 
-use anyhow::bail;
+
 use toml::Value;
 
 
@@ -174,7 +174,7 @@ pub enum TomlToRgbaError {
 }
 
 impl From<TryFromIntError> for TomlToRgbaError {
-    fn from(value: TryFromIntError) -> Self {
+    fn from(_value: TryFromIntError) -> Self {
         TomlToRgbaError::IntConversionFail
     }
 }
@@ -386,7 +386,7 @@ pub trait DisplayRect where Self: DisplayPosition + DisplaySized {
     /// This translation assumes a few things:
     /// the self.get_position() is relative to 0,0 of the parent.
     #[inline]
-    fn map_to_parent<P>(&self, parent: &P, local: Pixel) -> Pixel where P: DisplaySized {
+    fn map_to_parent<P>(&self, _parent: &P, local: Pixel) -> Pixel where P: DisplaySized {
         local + self.get_position()
     }
 

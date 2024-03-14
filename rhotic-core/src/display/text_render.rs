@@ -1,7 +1,7 @@
-use softbuffer::{Rect, Buffer};
-use winit::{window::Window, raw_window_handle::{HasDisplayHandle, HasWindowHandle}};
+use softbuffer::{Buffer};
+use winit::{raw_window_handle::{HasDisplayHandle, HasWindowHandle}};
 
-use crate::buffer::stage::Stage;
+
 
 use super::{image::ColorRect, Rgba};
 

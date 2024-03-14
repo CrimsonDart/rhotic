@@ -1,7 +1,7 @@
-use std::{path::PathBuf, str::FromStr, ffi::{OsStr, OsString}};
+use std::{path::PathBuf, str::FromStr, ffi::OsString};
 
 use anyhow::bail;
-use rhotic_macro::text_and_render;
+
 
 use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image, InputEvent, StateCommand}}, display::{font::FontManager, Rgba, image::MonoImage, event_loop::{Key}}};
 
@@ -115,7 +115,7 @@ impl Stage for Dired {
                 },
                 _ => {}
             },
-            Text(t) => {
+            Text(_t) => {
 
             },
             _ => {}

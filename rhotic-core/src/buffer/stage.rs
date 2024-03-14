@@ -1,7 +1,7 @@
 use fontdue::{layout::{Layout, TextStyle, GlyphPosition}, Metrics};
 use winit::{window::Window, event::MouseScrollDelta, keyboard::SmolStr};
 
-use crate::{display::{event_loop::{Input, Key}, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}, file::toml::Toml, state::application::State};
+use crate::{display::{event_loop::{Key}, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}};
 
 use toml::Table;
 
@@ -29,7 +29,7 @@ pub enum StateCommand {
 }
 
 impl<T> From<Option<T>> for StateCommand {
-    fn from(value: Option<T>) -> Self {
+    fn from(_value: Option<T>) -> Self {
         StateCommand::None
     }
 }

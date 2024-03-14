@@ -1,10 +1,10 @@
-use std::path::PathBuf;
+
 
 use crate::dired::Dired;
-use crate::{buffer::stage::*, display::font::FontManager, file::toml::Toml};
+use crate::{buffer::stage::*, display::font::FontManager};
 
 
-use crate::{display::event_loop::Input, buffer::textstage::TextEdit};
+use crate::{display::event_loop::Input};
 
 // A singeton that contains all data of the application.
 pub struct State {

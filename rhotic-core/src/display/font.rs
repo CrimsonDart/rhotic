@@ -9,7 +9,7 @@ use toml::{Table, Value};
 
 use super::Rgba;
 use super::image::MonoImage;
-use super::types::{CharsToRgbaError, TomlToRgbaError};
+use super::types::{TomlToRgbaError};
 
 pub fn load_ttf(path: &str) -> anyhow::Result<Font> {
 
@@ -86,7 +86,7 @@ impl Face {
 
 impl TryFrom<String> for Style {
     type Error = StringToStyleError;
-    fn try_from(mut value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: String) -> Result<Self, Self::Error> {
 
         use Style::*;
 

@@ -1,9 +1,9 @@
-use std::{num::NonZeroU32, fmt::{Display, Debug}, time::Instant, collections::HashMap, ops::IndexMut};
+use std::{num::NonZeroU32, fmt::{Debug}};
 use enum_iterator::{Sequence, all};
-use softbuffer::{Context, Surface, Buffer};
+use softbuffer::{Context, Surface};
 use winit::{
-    window::{WindowBuilder, Window},
-    event_loop::EventLoop, event::{MouseScrollDelta, ElementState}, dpi::PhysicalSize, keyboard::{PhysicalKey, KeyCode}};
+    window::{WindowBuilder},
+    event_loop::EventLoop, event::{ElementState}, dpi::PhysicalSize, keyboard::{PhysicalKey, KeyCode}};
 
 use crate::{state::application::State, buffer::stage::InputEvent};
 
@@ -113,7 +113,7 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                     KeyboardInput { device_id: _, event, is_synthetic: _ } => {
 
                         if event.state == ElementState::Pressed {
-                            if let Some(s) = event.logical_key.to_text() {
+                            if let Some(_s) = event.logical_key.to_text() {
                                 //TODO
                             }
                         }

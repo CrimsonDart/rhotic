@@ -1,11 +1,11 @@
-use fontdue::{layout::{Layout, TextStyle, GlyphRasterConfig, GlyphPosition}, Metrics};
+
 use softbuffer::{self, Buffer};
 use winit::window::Window;
 
 
-use crate::{state::application::State, buffer::textstage::Mode};
+use crate::{state::application::State};
 
-use super::{types::Pixel, Rgba, image::{Image, MonoImage, ColorRect}, text_render::{self, Canvas}};
+use super::{types::Pixel, Rgba, text_render::{Canvas}};
 
 
 // IF THE WINDOW BORDERS RESIZE FASTER THAN THE WINDOW ITSELF THEN IT'S BECAUSE

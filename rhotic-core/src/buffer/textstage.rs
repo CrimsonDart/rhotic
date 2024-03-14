@@ -1,10 +1,10 @@
-use std::{collections::HashMap, cell::OnceCell, sync::OnceLock};
 
-use winit::keyboard::KeyCode;
 
-use crate::display::{Rgba, font::FontManager, event_loop::Key};
 
-use super::{text_buffer::Page, stage::{Stage, TextStage, InputEvent, StateCommand}};
+
+
+
+use super::{stage::{Stage, TextStage, InputEvent, StateCommand}};
 
 use rhotic_macro::text_and_render;
 
@@ -34,7 +34,7 @@ impl Stage for TextEdit {
     }
 
 
-    fn send_event(&mut self, input: InputEvent) -> StateCommand {
+    fn send_event(&mut self, _input: InputEvent) -> StateCommand {
         StateCommand::None
     }
 }

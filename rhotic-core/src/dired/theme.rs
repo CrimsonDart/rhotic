@@ -68,7 +68,7 @@ impl std::ops::IndexMut<DiredFaces> for DiredTheme {
 }
 
 impl Configurable for DiredTheme {
-    fn configure(&mut self, config: Table) -> anyhow::Result<()> {
+    fn configure(&mut self, _config: Table) -> anyhow::Result<()> {
         Ok(())
     }
 

@@ -42,7 +42,7 @@ impl Page {
         self.text.get(line).map(|x| x.as_str())
     }
 
-    pub fn pop_line(&mut self, line: usize) -> Option<String> {
+    pub fn pop_line(&mut self, _line: usize) -> Option<String> {
         self.text.pop()
     }
 
@@ -113,7 +113,7 @@ impl Page {
     }
 
     pub fn pop_char(&mut self, line: usize) -> Option<char> {
-        let mut l = self.text.get_mut(line)?;
+        let l = self.text.get_mut(line)?;
 
         let c = l.pop();
         c
