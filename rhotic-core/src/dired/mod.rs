@@ -5,11 +5,14 @@ use rhotic_macro::text_and_render;
 
 use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image, InputEvent, StateCommand}}, display::{font::FontManager, Rgba, image::MonoImage, event_loop::{Key}}};
 
+mod theme;
+
 pub struct Dired {
     path: PathBuf,
     page: Page,
     cursor: usize,
     files: Vec<OsString>,
+    theme: theme::DiredTheme,
 }
 
 impl Dired {
@@ -66,7 +69,8 @@ impl Stage for Dired {
             path: path_buf,
             page: Default::default(),
             cursor: 0,
-            files: Vec::new()
+            files: Vec::new(),
+            theme: Default::default(),
         };
 
         buf.read_dir()?;

@@ -3,7 +3,6 @@ use std::fmt::Display;
 use std::{fs::File, error::Error};
 use std::io::prelude::*;
 
-use anyhow::bail;
 use fontdue::layout::GlyphRasterConfig;
 use fontdue::{Font, FontSettings, Metrics};
 use toml::{Table, Value};
@@ -52,9 +51,8 @@ pub struct Face {
 pub enum Style {
     None,
     Bold,
-    Italic,
-    BoldItalic,
     Oblique,
+    BoldOblique,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -63,6 +61,28 @@ pub enum Underline {
     Normal(Rgba),
     Squiggly(Rgba)
 }
+
+use fontdue::layout::TextStyle;
+
+
+impl Face {
+    fn to_style<'a>(&self, text: &'a str, manager: FontManager) -> TextStyle<'a> {
+        TextStyle {
+            text,
+            px: {
+                manager.scale * self.scale
+            },
+            font_index: match self.style {
+                Style::None => 0,
+                Style::Bold => 1,
+                _ => 2
+            },
+            user_data: ()
+        }
+    }
+}
+
+
 
 impl TryFrom<String> for Style {
     type Error = StringToStyleError;
@@ -74,8 +94,7 @@ impl TryFrom<String> for Style {
         Ok(match value.as_str() {
             "none" => Style::None,
             "bold" => Bold,
-            "italic" => Italic,
-            "bolditalic" | "italicbold" | "bold_italic" | "italic_bold" => BoldItalic,
+            "boldoblique" | "obliquebold" | "bold_oblique" | "oblique_bold" => BoldOblique,
             "oblique" => Oblique,
             _ => { return Err(StringToStyleError(value)); }
         })
@@ -226,7 +245,8 @@ pub enum TomlFaceFields {
 impl FontManager {
     pub fn new() -> anyhow::Result<Self> {
         let fonts = vec![
-            load_ttf("./assets/fonts/FiraCode-Regular.ttf")?
+            load_ttf("./assets/fonts/FiraCode-Regular.ttf")?,
+            load_ttf("./assets/fonts/FiraCode-Bold.ttf")?,
         ];
 
         Ok(Self {

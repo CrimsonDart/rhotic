@@ -3,6 +3,8 @@ use winit::{window::Window, event::MouseScrollDelta, keyboard::SmolStr};
 
 use crate::{display::{event_loop::{Input, Key}, text_render::Canvas, font::FontManager, image::MonoImage, Rgba}, file::toml::Toml, state::application::State};
 
+use toml::Table;
+
 pub trait Stage where Self: Sized {
     fn init(input: &[&str]) -> anyhow::Result<Self>;
     fn send_event(&mut self, input: InputEvent) -> StateCommand;
@@ -33,8 +35,8 @@ impl<T> From<Option<T>> for StateCommand {
 }
 
 pub trait Configurable {
-    fn configure(&mut self, config: Toml) -> anyhow::Result<()>;
-    fn default_configuration() -> Toml;
+    fn configure(&mut self, config: Table) -> anyhow::Result<()>;
+    fn default_configuration() -> Table;
     const CONFIG_FILE_NAME: &'static str;
 }
 

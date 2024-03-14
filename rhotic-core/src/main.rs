@@ -1,10 +1,10 @@
 use display::event_loop::start_event_loop;
 
-mod display;
-mod state;
-mod buffer;
-mod file;
-mod dired;
+pub mod display;
+pub mod state;
+pub mod buffer;
+pub mod file;
+pub mod dired;
 
 fn main() -> anyhow::Result<()> {
 
