@@ -22,7 +22,7 @@ impl State {
             is_focused: false,
             font_manager: FontManager::new()?,
             input: Input::default(),
-            stage: Stage::init(["/home/james/Library"].as_slice())?,
+            stage: Stage::init(["/home/james/.config"].as_slice())?,
         })
     }
 
@@ -31,8 +31,11 @@ impl State {
         use StateCommand::*;
 
         match self.stage.send_event(event) {
-            StartStage(c) => {},
+            StartStage(_) => {},
             None => {}
+            Log(s) => {
+                println!("{s}");
+            }
         }
     }
 }

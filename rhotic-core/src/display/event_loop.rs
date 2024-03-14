@@ -142,9 +142,9 @@ pub fn start_event_loop() -> anyhow::Result<()> {
                             InputEvent::Release(key)
                         };
 
-                        state.send_event(send_event);
-
                         window.request_redraw();
+
+                        state.send_event(send_event);
                     },
                     _ => {}
                 }

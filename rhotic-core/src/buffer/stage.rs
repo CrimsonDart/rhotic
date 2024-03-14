@@ -21,6 +21,7 @@ pub enum InputEvent<'a> {
 
 pub enum StateCommand {
     StartStage(String),
+    Log(String),
     None,
     // Add log command?
 }

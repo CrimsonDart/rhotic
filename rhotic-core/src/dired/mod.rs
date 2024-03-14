@@ -89,6 +89,26 @@ impl Stage for Dired {
                 Arrowup => if self.cursor != 0 {
                     self.cursor -= 1;
                 },
+                Arrowleft => {
+                    if self.path.pop() {
+                        self.cursor = 0;
+                        self.read_dir();
+                    }
+                },
+                Arrowright => {
+
+                    let selected = &self.files[self.cursor];
+
+                    let mut new_path = self.path.clone();
+                    new_path.push(selected);
+                    if new_path.is_dir() {
+                        self.path = new_path;
+                        self.cursor = 0;
+                        self.read_dir();
+                    } else {
+                        return StateCommand::Log(String::from("The file {selected} is not a directory."));
+                    }
+                },
                 _ => {}
             },
             Text(t) => {
