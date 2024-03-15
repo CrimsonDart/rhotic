@@ -1,6 +1,7 @@
 use std::{path::PathBuf, str::FromStr, ffi::OsString};
 
 use anyhow::bail;
+use fontdue::layout::{Layout, TextStyle};
 
 
 use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image, InputEvent, StateCommand}}, display::{font::FontManager, Rgba, image::MonoImage, event_loop::{Key}}};
@@ -11,7 +12,7 @@ pub struct Dired {
     path: PathBuf,
     page: Page,
     cursor: usize,
-    files: Vec<OsString>,
+    files: Vec<(OsString, bool)>,
     theme: theme::DiredTheme,
 }
 
@@ -22,10 +23,11 @@ impl Dired {
 
         let mut vec: Vec<_> = dir.map(|x| {
 
+
             if let Ok(s) = x {
-                s.file_name()
+                (s.file_name(), s.path().is_dir())
             } else {
-                OsString::from("-- failed to display --")
+                (OsString::from("-- failed to display --"), false)
             }
 
         }).collect();
@@ -37,7 +39,7 @@ impl Dired {
 
         for string in self.files.iter() {
 
-            self.page.push_line(if let Some(s) = string.to_str() {
+            self.page.push_line(if let Some(s) = string.0.to_str() {
                 s
             } else {
                 "-- failed to convert --"
@@ -104,7 +106,7 @@ impl Stage for Dired {
                     let selected = &self.files[self.cursor];
 
                     let mut new_path = self.path.clone();
-                    new_path.push(selected);
+                    new_path.push(selected.0.clone());
                     if new_path.is_dir() {
                         self.path = new_path;
                         self.cursor = 0;
@@ -129,7 +131,31 @@ impl Stage for Dired {
 impl Render<&mut FontManager> for Dired {
     fn render(&self, canvas: &mut crate::display::text_render::Canvas<&winit::window::Window, &winit::window::Window>, v: &mut FontManager) {
 
-        let layout = layout(self.page.as_string(), v);
+        let mut layout: Layout<bool> = Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
+
+        for file in self.files.iter() {
+
+            layout.append(v.fonts.as_slice(), &TextStyle {
+                text: match file.0.to_str() {
+                    Some(mut s) => s,
+                    None => "-- Conversion Failed --"
+                },
+                px: v.scale,
+                font_index: if file.1 {
+                    1
+                } else {
+                    0
+                },
+                user_data: file.1
+            });
+            layout.append(v.fonts.as_slice(), &TextStyle {
+                text: "\n",
+                px: v.scale,
+                font_index:0,
+                user_data: false
+            })
+        }
+
         let glyphs = layout.glyphs();
         let (mut gx, mut gy) = (0,0);
         let cursor = self.cursor;
@@ -141,7 +167,7 @@ impl Render<&mut FontManager> for Dired {
                     line.baseline_y as isize - line.max_ascent as isize,
                     canvas.width(),
                     line.max_new_line_size as usize,
-                    Rgba::new_opaque(0x60, 0xAF, 0xFF)
+                    self.theme.select_color
                 )
             }
         }
@@ -160,7 +186,7 @@ impl Render<&mut FontManager> for Dired {
             }
 
             let line_background_color: Rgba = if gy == cursor {
-                Rgba::new_opaque(0x60, 0xAF, 0xFF)
+                self.theme.select_color
             } else {
                 Rgba::DARK_GRAY
             };
@@ -172,7 +198,11 @@ impl Render<&mut FontManager> for Dired {
                 glyph.y as isize,
                 image,
                 line_background_color,
-                Rgba::WHITE
+                if glyph.user_data {
+                    self.theme.directory_color
+                } else {
+                    self.theme.file_color
+                }
             );
         }
     }

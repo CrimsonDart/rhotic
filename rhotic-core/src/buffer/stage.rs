@@ -191,7 +191,7 @@ pub fn layout(text: String, font_manager: &FontManager) -> Layout {
     layout
 }
 
-pub fn get_image<'a>(glyph: &GlyphPosition, font_manager: &'a mut FontManager) -> &'a (Metrics, MonoImage) {
+pub fn get_image<'a, T: Clone + Copy>(glyph: &GlyphPosition<T>, font_manager: &'a mut FontManager) -> &'a (Metrics, MonoImage) {
 
     font_manager.cache.entry(glyph.key).or_insert({
         let (metrics, raster) = font_manager.fonts[0].rasterize_indexed(glyph.key.glyph_index, glyph.key.px);
