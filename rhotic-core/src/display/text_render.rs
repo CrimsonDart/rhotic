@@ -68,6 +68,10 @@ pub fn draw_monochrome_image<R: ColorRect<u8, u8>, C: Into<u32>>
         white: Rgba
     ) {
 
+        if self.width < x as usize || self.height < y as usize  {
+            return;
+        }
+
     let bytes = image.get_bytes();
 
     let mut gx = x;

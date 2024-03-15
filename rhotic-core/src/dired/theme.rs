@@ -16,7 +16,9 @@ pub struct DiredTheme {
 
     pub file_color: Rgba,
     pub directory_color: Rgba,
-    pub select_color: Rgba
+    pub select_color: Rgba,
+    pub symlink_color: Rgba,
+    pub error_color: Rgba
 }
 
 impl Default for DiredTheme {
@@ -24,7 +26,9 @@ impl Default for DiredTheme {
         Self {
             file_color: Rgba::WHITE,
             directory_color: Rgba::GREEN,
-            select_color: Rgba::new_opaque(0x60, 0xAF, 0xFF)
+            select_color: Rgba::new_opaque(0x60, 0xAF, 0xFF),
+            symlink_color: Rgba::MAGENTA,
+            error_color: Rgba::RED
         }
     }
 }
