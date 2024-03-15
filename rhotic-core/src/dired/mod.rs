@@ -174,8 +174,6 @@ impl Stage for Dired {
                     }
                 },
                 Arrowright => {
-
-
                     let selected = {
                         let mut new_path = self.path.clone();
                         new_path.push(&self.files[self.cursor].name);
