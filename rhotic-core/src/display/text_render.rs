@@ -12,6 +12,13 @@ pub struct Canvas<'a, D, W> {
     height: usize
 }
 
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+pub enum ImageCompletion {
+    None,
+    Partial,
+    Complete
+}
+
 impl<'a, D: HasDisplayHandle, W: HasWindowHandle> Canvas<'a, D, W> {
 
     pub fn new(buffer: Buffer<'a, D, W>, width: usize, height: usize) -> Self {
@@ -25,7 +32,6 @@ impl<'a, D: HasDisplayHandle, W: HasWindowHandle> Canvas<'a, D, W> {
     pub fn destroy(self) -> Buffer<'a, D, W> {
         self.buffer
     }
-
 
     pub fn width(&self) -> usize {
         self.width
@@ -58,6 +64,11 @@ pub fn draw_image<R: ColorRect<Rgba>>(&mut self, x: isize, y: isize, image: &R) 
     }
 }
 
+
+
+
+
+
 pub fn draw_monochrome_image<R: ColorRect<u8, u8>, C: Into<u32>>
 
     (
@@ -66,46 +77,51 @@ pub fn draw_monochrome_image<R: ColorRect<u8, u8>, C: Into<u32>>
         image: &R,
         black: Rgba,
         white: Rgba
-    ) {
+    ) -> ImageCompletion {
 
         if self.width < x as usize || self.height < y as usize  {
-            return;
+            return ImageCompletion::None;
         }
 
-    let bytes = image.get_bytes();
+        let mut comp = ImageCompletion::Complete;
 
-    let mut gx = x;
-    let mut gy = y;
+        let bytes = image.get_bytes();
 
-    for counter in 0..image.get_bytes().len() {
+        let mut gx = x;
+        let mut gy = y;
 
-        if gx >= 0 && gy >= 0 {
-            let (nx, ny) = (gx as usize, gy as usize);
+        for counter in 0..image.get_bytes().len() {
 
-            if nx < self.width() && ny < self.height() {
+            if gx >= 0 && gy >= 0 {
+                let (nx, ny) = (gx as usize, gy as usize);
 
-                let color = match bytes[counter] {
-                    0 => { black },
-                    255 => {white},
-                    b => { black.blend(white, b) }
-                };
+                if nx < self.width() && ny < self.height() {
 
-                self.buffer[ny * self.width + nx] = color.into();
+                    let color = match bytes[counter] {
+                        0 => { black },
+                        255 => {white},
+                        b => { black.blend(white, b) }
+                    };
+
+                    self.buffer[ny * self.width + nx] = color.into();
+                } else {
+                    comp = ImageCompletion::Partial;
+                }
+            }
+
+            if gx == image.get_width() as isize + x - 1 {
+                gx = x;
+                gy += 1;
+            } else {
+                gx += 1;
             }
         }
-
-        if gx == image.get_width() as isize + x - 1 {
-            gx = x;
-            gy += 1;
-        } else {
-            gx += 1;
-        }
+        comp
     }
-}
 
-pub fn draw_rectangle(&mut self, x: isize, y: isize, rect_width: usize, rect_height: usize, color: Rgba) {
-    let mut gx = x;
-    let mut gy = y;
+    pub fn draw_rectangle(&mut self, x: isize, y: isize, rect_width: usize, rect_height: usize, color: Rgba) {
+        let mut gx = x;
+        let mut gy = y;
 
     for _ in 0..(rect_width * rect_height) {
 

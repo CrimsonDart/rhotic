@@ -41,7 +41,7 @@ pub trait Configurable {
 }
 
 pub trait Render<V = ()> {
-    fn render(&self, canvas: &mut Canvas<&Window, &Window>, v: V);
+    fn render(&mut self, canvas: &mut Canvas<&Window, &Window>, v: V);
 }
 
 pub trait TextStage {
@@ -58,7 +58,7 @@ pub enum CursorLook {
 }
 
 impl<T: TextStage> Render<&mut FontManager> for T {
-    fn render(&self, canvas: &mut Canvas<&Window, &Window>, v: &mut FontManager) {
+    fn render(&mut self, canvas: &mut Canvas<&Window, &Window>, v: &mut FontManager) {
         use CursorLook::*;
 
         let layout = layout(self.get_display_text(), v);

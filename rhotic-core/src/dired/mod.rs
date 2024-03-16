@@ -3,7 +3,6 @@ use std::{path::PathBuf, str::FromStr, ffi::OsString, fs::{ReadDir, DirEntry}, i
 use anyhow::bail;
 use fontdue::layout::{Layout, TextStyle};
 
-
 use crate::{buffer::{text_buffer::Page, stage::{Stage, Render, layout, get_image, InputEvent, StateCommand}}, display::{font::FontManager, Rgba, image::MonoImage, event_loop::{Key}}};
 
 mod theme;
@@ -14,6 +13,7 @@ pub struct Dired {
     theme: theme::DiredTheme,
     files: Vec<FileEntry>,
     scroll_top: usize,
+    line_height: usize,
     scroll_window_len: usize
 }
 
@@ -138,6 +138,7 @@ impl Stage for Dired {
             files: vec![],
             scroll_top: 0,
             scroll_window_len: 40,
+            line_height: 20
         };
 
         buf.update_files();
@@ -155,7 +156,7 @@ impl Stage for Dired {
                 Arrowdown => if self.cursor + 1 != self.files.len() {
                     self.cursor += 1;
 
-                    if self.cursor > self.scroll_top + self.scroll_window_len - 5 {
+                    if self.cursor > self.scroll_top + self.scroll_window_len.checked_sub(5).unwrap_or(0) && self.cursor < self.files.len().checked_sub(5).unwrap_or(0)  {
                         self.scroll_top += 1;
                     }
                 },
@@ -210,9 +211,11 @@ impl Stage for Dired {
 }
 
 impl Render<&mut FontManager> for Dired {
-    fn render(&self, canvas: &mut crate::display::text_render::Canvas<&winit::window::Window, &winit::window::Window>, v: &mut FontManager) {
+    fn render(&mut self, canvas: &mut crate::display::text_render::Canvas<&winit::window::Window, &winit::window::Window>, v: &mut FontManager) {
 
         let mut layout: Layout<FileType> = Layout::new(fontdue::layout::CoordinateSystem::PositiveYDown);
+
+        self.scroll_window_len = canvas.height() / self.line_height;
 
         for i in self.scroll_top..(self.scroll_top + self.scroll_window_len) {
             if let Some(file) = self.files.get(i) {
@@ -225,8 +228,13 @@ impl Render<&mut FontManager> for Dired {
         let (mut gx, mut gy) = (0,0);
         let cursor = self.cursor - self.scroll_top;
 
+        let mut lines_in_window = 0;
+
         if let Some(lines) = layout.lines() {
             if let Some(line) = lines.get(cursor) {
+
+                self.line_height = line.max_new_line_size as usize;
+
                 canvas.draw_rectangle(
                     0,
                     line.baseline_y as isize - line.max_ascent as isize,
@@ -258,7 +266,7 @@ impl Render<&mut FontManager> for Dired {
 
             let (_metrics, image) = get_image(glyph, v);
 
-            canvas.draw_monochrome_image::<MonoImage, u8>(
+            let val = canvas.draw_monochrome_image::<MonoImage, u8>(
                 glyph.x as isize,
                 glyph.y as isize,
                 image,
@@ -271,6 +279,15 @@ impl Render<&mut FontManager> for Dired {
                     _ => Rgba::BLACK
                 }
             );
+
+            use crate::display::text_render::ImageCompletion;
+
+            if val == ImageCompletion::Partial || val == ImageCompletion::Complete {
+                lines_in_window = gy;
+            }
+
         }
+
+        self.scroll_window_len = lines_in_window;
     }
 }
